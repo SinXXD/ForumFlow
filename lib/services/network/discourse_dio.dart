@@ -20,6 +20,21 @@ import 'recovery/session_heal_policy.dart';
 
 /// 统一封装的 Dio 工厂
 class DiscourseDio {
+  /// 以当前论坛为默认 baseUrl 的 Dio 实例。
+  ///
+  /// Dio 会在实例创建时缓存 [BaseOptions.baseUrl]；多论坛切换后，仅让
+  /// AppConstants.baseUrl 变成 getter 还不够，相对路径请求仍会命中旧站点。
+  /// 这里登记动态主站实例，在切站完成后统一改写其 baseUrl。
+  static final Set<Dio> _siteBoundDios = <Dio>{};
+
+  /// 让已有的主站 Dio 实例跟随当前论坛。
+  static void refreshSiteBaseUrls() {
+    final currentBaseUrl = AppConstants.baseUrl;
+    for (final dio in List<Dio>.of(_siteBoundDios)) {
+      dio.options.baseUrl = currentBaseUrl;
+    }
+  }
+
   static Dio create({
     Duration connectTimeout = const Duration(seconds: 30),
     Duration receiveTimeout = const Duration(seconds: 30),
@@ -33,6 +48,7 @@ class DiscourseDio {
     bool enableCookies = true,
     bool enableNetworkLog = true,
   }) {
+    final usesCurrentSite = baseUrl == null;
     final dio = Dio(
       BaseOptions(
         baseUrl: baseUrl ?? AppConstants.baseUrl,
@@ -46,6 +62,9 @@ class DiscourseDio {
             status != null && status >= 200 && status < 400,
       ),
     );
+    if (usesCurrentSite) {
+      _siteBoundDios.add(dio);
+    }
 
     // 大响应(>50KB)的 JSON 解码移入 isolate:话题列表/详情等大 JSON
     // 在主线程解码实测把 DartIsolate::HandleMessage 顶到 50~100ms,

@@ -1,0 +1,93 @@
+{
+  "@@locale": "zh_HK",
+  "forum_title": "論壇管理",
+  "forum_switchTitle": "切換論壇",
+  "forum_manageAction": "管理論壇",
+  "forum_switchTo": "切換到此論壇",
+  "forum_addNameLabel": "名稱（可選，預設使用網站標題）",
+  "forum_siteAddressLabel": "論壇地址",
+  "forum_siteAddressHint": "https://example.com",
+  "forum_addAction": "添加論壇",
+  "forum_addSuccess": "已添加「{name}」",
+  "@forum_addSuccess": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_deleteTitle": "刪除論壇",
+  "forum_deleteMessage": "確定要從列表移除「{name}」嗎？已保存的登錄狀態和本地數據會保留，之後重新添加同一論壇仍可繼續使用。",
+  "@forum_deleteMessage": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_deleteFailed": "預置論壇或當前論壇不可刪除",
+  "forum_current": "當前論壇：{name}",
+  "@forum_current": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_switchTooltip": "切換論壇（當前：{name}）",
+  "@forum_switchTooltip": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_description": "每個論壇都有獨立的登錄狀態（Cookie、憑證、書籤和草稿），切換互不影響；瀏覽歷史和閱讀偏好全局共享。",
+  "forum_hcaptchaTitle": "完成人機驗證",
+  "forum_hcaptchaInstruction": "完成下方驗證後繼續登錄。",
+  "forum_hcaptchaNotConfigured": "當前論壇沒有公開 hCaptcha 配置，將直接嘗試登錄。",
+  "forum_continueLogin": "繼續登錄",
+  "forum_loginProcessing": "正在登錄…",
+  "forum_hcaptchaInitFailed": "無法初始化人機驗證頁面",
+  "forum_loginScriptFailed": "無法執行登錄腳本",
+  "forum_loginResponseParseFailed": "無法解析登錄響應",
+  "forum_hcaptchaFailed": "人機驗證失敗，請重試（hCaptcha {status}）",
+  "@forum_hcaptchaFailed": {
+    "placeholders": {
+      "status": {"type": "int"}
+    }
+  },
+  "forum_loginRequestFailed": "登錄請求失敗",
+  "forum_unknownLoginPhase": "未知登錄階段：{phase}",
+  "@forum_unknownLoginPhase": {
+    "placeholders": {
+      "phase": {"type": "String"}
+    }
+  },
+  "forum_cfVerificationExpired": "Cloudflare 驗證已失效，請重試（CSRF {status}）",
+  "@forum_cfVerificationExpired": {
+    "placeholders": {
+      "status": {"type": "int"}
+    }
+  },
+  "forum_cfRechecking": "Cloudflare 驗證已失效，正在重新驗證…",
+  "forum_openBrowserFailed": "無法打開瀏覽器，請重試",
+  "forum_cloudflareNotComplete": "Cloudflare 驗證未完成，請重試",
+  "forum_twoFactorAppHint": "請輸入驗證器 App 顯示的 6 位驗證碼",
+  "forum_twoFactorRequired": "此帳號需要雙重驗證",
+  "forum_invalidCredentials": "用戶名或密碼錯誤",
+  "forum_twoFactorFailed": "雙重驗證失敗",
+  "forum_accountNotActivated": "帳號未激活，請到電郵 {email} 完成激活",
+  "@forum_accountNotActivated": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "forum_accountNotApproved": "帳號尚未通過審核",
+  "forum_passwordExpired": "密碼已過期，請使用瀏覽器登錄重設密碼",
+  "forum_networkError": "網絡異常",
+  "forum_loginFailed": "登錄失敗",
+  "forum_savedCredentialsCleared": "已清除保存的帳號密碼",
+  "forum_clearSavedCredentials": "清除保存的帳號",
+  "forum_browserAuthLogin": "瀏覽器授權登錄",
+  "forum_otherLoginMethods": "其他方式登錄（OAuth / Passkey / 註冊）",
+  "forum_or": "或",
+  "forum_webviewLoginTitle": "登錄 {name}",
+  "@forum_webviewLoginTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  }
+}

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../models/topic.dart';
 import '../models/category.dart';
+import 'auth_session.dart';
 import 'network/discourse_dio.dart';
 import 'network/cookie/csrf_token_service.dart';
 import 'cf_challenge_service.dart';
@@ -48,6 +49,7 @@ class PreloadedDataService {
   bool _hasDiscourseSetup = false; // 是否提取到 data-discourse-setup 标签
   bool _loaded = false;
   bool _loading = false;
+  int _siteGeneration = 0;
 
   PreloadedDataService._internal()
     : _dio = DiscourseDio.create(
@@ -62,6 +64,25 @@ class PreloadedDataService {
   bool get isLoaded => _loaded;
   Map<String, dynamic>? get currentUserSync => _currentUser;
   Map<String, dynamic>? get siteSettingsSync => _siteSettings;
+
+  /// 论坛切换时重置所有站点相关缓存，使下一次 [ensureLoaded]
+  /// 重新拉取新站点的数据。
+  void resetForSiteSwitch() {
+    _siteGeneration++;
+    _clearCachedData();
+    _sharedSessionKey = null;
+    _longPollingBaseUrl = null;
+    _baseUri = '';
+    _cdnUrl = null;
+    _s3CdnUrl = null;
+    _s3BaseUrl = null;
+    _pluginCandidates = null;
+    _hasDiscourseSetup = false;
+    _loaded = false;
+    // 若旧站首页请求仍在进行，不要伪造成“没有加载中”。让新一轮
+    // ensureLoaded 等待旧请求的 finally 清理，避免两站同时写同一份单例缓存。
+    debugPrint('[PreloadedData] 站点切换，重置预加载缓存');
+  }
 
   /// 从首页 HTML 扫出的 plugin js url 列表（供 WebView session bootstrap 复用,
   /// 避免重复 fetch 首页）。未加载或没扫到时返回 null。
@@ -430,7 +451,13 @@ class PreloadedDataService {
 
   /// 强制刷新预加载数据
   Future<void> refresh() async {
+    _siteGeneration++;
     _clearCachedData();
+    // 现有首页请求可能还在收尾；等它 finally 清掉 _loading 后再启动
+    // 新一代请求，避免 refresh() 因“已有加载”直接返回而留下空缓存。
+    while (_loading) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
     await _loadPreloadedData();
   }
 
@@ -439,8 +466,26 @@ class PreloadedDataService {
   /// 适用于登录 WebView 已经拿到完整页面的场景，避免重复请求首页。
   /// 返回是否成功解析到 data-preloaded。
   Future<bool> hydrateFromHtml(String html) async {
+    // HTML 快照可能与此前正在进行的 native 首页请求并行到达；让快照
+    // 成为新一代数据源，旧请求即使稍后完成也不能覆盖它。
+    _siteGeneration++;
+    final siteGeneration = _siteGeneration;
+    final authGeneration = AuthSession().generation;
+    final expectedBaseUrl = AppConstants.baseUrl;
     _clearCachedData();
-    final parsed = await _parsePreloadedDataFromHtml(html);
+    final parsed = await _parsePreloadedDataFromHtml(
+      html,
+      siteGeneration: siteGeneration,
+      authGeneration: authGeneration,
+      expectedBaseUrl: expectedBaseUrl,
+    );
+    if (!_isCurrentPreloadRun(
+      siteGeneration,
+      authGeneration,
+      expectedBaseUrl,
+    )) {
+      return false;
+    }
     if (!parsed) {
       debugPrint('[PreloadedData] HTML 快照不包含可用的 data-preloaded');
       return false;
@@ -464,6 +509,15 @@ class PreloadedDataService {
   }
 
   void _clearCachedData() {
+    // 切站/刷新时不能让已被清空的 completer 永远悬挂。
+    final topicCompleter = _topicListResponseCompleter;
+    if (topicCompleter != null && !topicCompleter.isCompleted) {
+      topicCompleter.complete(null);
+    }
+    final trackingCompleter = _topicTrackingStatesCompleter;
+    if (trackingCompleter != null && !trackingCompleter.isCompleted) {
+      trackingCompleter.complete(null);
+    }
     _loaded = false;
     _currentUser = null;
     _siteSettings = null;
@@ -487,6 +541,7 @@ class PreloadedDataService {
 
   /// 重置缓存（登出时调用）
   void reset() {
+    _siteGeneration++;
     _clearCachedData();
     _baseUri = '';
     _cdnUrl = null;
@@ -514,12 +569,15 @@ class PreloadedDataService {
   Future<void> _loadPreloadedData() async {
     if (_loading) return;
     _loading = true;
+    final siteGeneration = _siteGeneration;
+    final authGeneration = AuthSession().generation;
+    final expectedBaseUrl = AppConstants.baseUrl;
 
     try {
       // 发起 HTTP 请求获取数据
       debugPrint('[PreloadedData] 发起 HTTP 请求');
       final response = await _dio.get(
-        AppConstants.baseUrl,
+        expectedBaseUrl,
         options: Options(
           headers: {'Accept': 'text/html'},
           extra: {
@@ -531,7 +589,28 @@ class PreloadedDataService {
       );
 
       final html = response.data as String;
-      final parsed = await _parsePreloadedDataFromHtml(html);
+      if (!_isCurrentPreloadRun(
+        siteGeneration,
+        authGeneration,
+        expectedBaseUrl,
+      )) {
+        debugPrint('[PreloadedData] 丢弃过期站点首页响应');
+        return;
+      }
+      final parsed = await _parsePreloadedDataFromHtml(
+        html,
+        siteGeneration: siteGeneration,
+        authGeneration: authGeneration,
+        expectedBaseUrl: expectedBaseUrl,
+      );
+      if (!_isCurrentPreloadRun(
+        siteGeneration,
+        authGeneration,
+        expectedBaseUrl,
+      )) {
+        debugPrint('[PreloadedData] 丢弃过期站点首页解析结果');
+        return;
+      }
       if (!parsed) {
         // 解析失败不可标记成功:置 _loaded 会让所有消费方拿到空数据并
         // 静默降级到接口兜底(站点改版时曾无声潜伏)。抛错让调用方走
@@ -551,13 +630,30 @@ class PreloadedDataService {
   }
 
   /// 从 HTML 中解析预加载数据（兼容新旧两种形态）
-  Future<bool> _parsePreloadedDataFromHtml(String html) async {
+  Future<bool> _parsePreloadedDataFromHtml(
+    String html, {
+    required int siteGeneration,
+    required int authGeneration,
+    required String expectedBaseUrl,
+  }) async {
+    if (!_isCurrentPreloadRun(
+      siteGeneration,
+      authGeneration,
+      expectedBaseUrl,
+    )) {
+      return false;
+    }
     _extractCsrfTokenFromHtml(html);
     _extractSharedSessionKeyFromHtml(html);
     _extractTurnstileSitekeyFromHtml(html);
     _extractBaseUriFromHtml(html);
     _extractCdnUrlFromHtml(html);
-    _extractPluginCandidatesInBackground(html);
+    _extractPluginCandidatesInBackground(
+      html,
+      siteGeneration: siteGeneration,
+      authGeneration: authGeneration,
+      expectedBaseUrl: expectedBaseUrl,
+    );
 
     // 新版形态：<script type="application/json" id="data-preloaded">{...}</script>
     // 内容是原始 JSON，不做 HTML 实体解码（否则正文中字面的 &quot; 会被误还原）
@@ -572,6 +668,9 @@ class PreloadedDataService {
         return _parsePreloadedDataString(
           html.substring(start, end),
           htmlEntityEncoded: false,
+          siteGeneration: siteGeneration,
+          authGeneration: authGeneration,
+          expectedBaseUrl: expectedBaseUrl,
         );
       }
     }
@@ -582,7 +681,13 @@ class PreloadedDataService {
       debugPrint('[PreloadedData] 未找到 data-preloaded 数据');
       return false;
     }
-    return _parsePreloadedDataString(match.group(1)!, htmlEntityEncoded: true);
+    return _parsePreloadedDataString(
+      match.group(1)!,
+      htmlEntityEncoded: true,
+      siteGeneration: siteGeneration,
+      authGeneration: authGeneration,
+      expectedBaseUrl: expectedBaseUrl,
+    );
   }
 
   void _extractCsrfTokenFromHtml(String html) {
@@ -669,16 +774,27 @@ class PreloadedDataService {
   /// 全 HTML 正则扫描可能较重，因此放到后台 isolate 异步填充，避免阻塞
   /// PreheatLogo 动画和预加载关键路径。未及时产出时 bootstrap 会降级为
   /// 自己 fetch 首页扫描，功能不受影响。
-  void _extractPluginCandidatesInBackground(String html) {
-    final baseUrl = AppConstants.baseUrl;
+  void _extractPluginCandidatesInBackground(
+    String html, {
+    required int siteGeneration,
+    required int authGeneration,
+    required String expectedBaseUrl,
+  }) {
     unawaited(() async {
       try {
         // 让当前解析流程先归还事件循环，避免在同一帧继续抢 UI isolate。
         await Future<void>.delayed(Duration.zero);
         final ordered = await compute<List<String>, List<String>>(
           _extractPluginCandidatesInIsolate,
-          [html, baseUrl],
+          [html, expectedBaseUrl],
         );
+        if (!_isCurrentPreloadRun(
+          siteGeneration,
+          authGeneration,
+          expectedBaseUrl,
+        )) {
+          return;
+        }
         _pluginCandidates = ordered.isEmpty ? null : List.unmodifiable(ordered);
         if (ordered.isNotEmpty) {
           debugPrint(
@@ -689,6 +805,16 @@ class PreloadedDataService {
         debugPrint('[PreloadedData] pluginCandidates 提取失败: $e');
       }
     }());
+  }
+
+  bool _isCurrentPreloadRun(
+    int siteGeneration,
+    int authGeneration,
+    String expectedBaseUrl,
+  ) {
+    return _siteGeneration == siteGeneration &&
+        AuthSession().isValid(authGeneration) &&
+        AppConstants.baseUrl == expectedBaseUrl;
   }
 
   bool _hasReusableBootstrapData() {
@@ -724,6 +850,9 @@ class PreloadedDataService {
   Future<bool> _parsePreloadedDataString(
     String dataString, {
     required bool htmlEntityEncoded,
+    required int siteGeneration,
+    required int authGeneration,
+    required String expectedBaseUrl,
   }) async {
     try {
       // 在 Isolate 中完成（可选的）HTML entity 解码 + 外层/内层 JSON 解码
@@ -733,6 +862,13 @@ class PreloadedDataService {
       ]);
       if (preloaded == null) {
         debugPrint('[PreloadedData] 预加载 JSON 解析为空');
+        return false;
+      }
+      if (!_isCurrentPreloadRun(
+        siteGeneration,
+        authGeneration,
+        expectedBaseUrl,
+      )) {
         return false;
       }
 
@@ -814,7 +950,12 @@ class PreloadedDataService {
 
       // 解析首页话题列表（如果存在）
       // 注意：这个数据可能在不同的 key 下，需要检查多个位置
-      _parseTopicListFromPreloaded(preloaded);
+      _parseTopicListFromPreloaded(
+        preloaded,
+        siteGeneration: siteGeneration,
+        authGeneration: authGeneration,
+        expectedBaseUrl: expectedBaseUrl,
+      );
       return true;
     } catch (e) {
       debugPrint('[PreloadedData] JSON 解析失败: $e');
@@ -823,7 +964,12 @@ class PreloadedDataService {
   }
 
   /// 从预加载数据中解析话题列表
-  void _parseTopicListFromPreloaded(Map<String, dynamic> preloaded) {
+  void _parseTopicListFromPreloaded(
+    Map<String, dynamic> preloaded, {
+    required int siteGeneration,
+    required int authGeneration,
+    required String expectedBaseUrl,
+  }) {
     // 尝试多个可能的 key
     final possibleKeys = ['topicList', 'topic_list', 'latest'];
 
@@ -832,7 +978,12 @@ class PreloadedDataService {
         try {
           final value = preloaded[key];
           if (value is String) {
-            _decodeTopicListAsync(value);
+            _decodeTopicListAsync(
+              value,
+              siteGeneration: siteGeneration,
+              authGeneration: authGeneration,
+              expectedBaseUrl: expectedBaseUrl,
+            );
             return;
           } else if (value is Map) {
             _topicListData = value as Map<String, dynamic>;
@@ -846,7 +997,12 @@ class PreloadedDataService {
             debugPrint(
               '[PreloadedData] topic_list 解析成功 (key=$key), topics=$topicsCount',
             );
-            _parseTopicListResponseAsync(_topicListData!);
+            _parseTopicListResponseAsync(
+              _topicListData!,
+              siteGeneration: siteGeneration,
+              authGeneration: authGeneration,
+              expectedBaseUrl: expectedBaseUrl,
+            );
             return;
           }
         } catch (e) {
@@ -856,10 +1012,22 @@ class PreloadedDataService {
     }
   }
 
-  void _decodeTopicListAsync(String rawJson) {
+  void _decodeTopicListAsync(
+    String rawJson, {
+    required int siteGeneration,
+    required int authGeneration,
+    required String expectedBaseUrl,
+  }) {
     _topicListResponseCompleter ??= Completer<TopicListResponse?>();
     compute(_decodeTopicListInIsolate, rawJson)
         .then((decoded) {
+          if (!_isCurrentPreloadRun(
+            siteGeneration,
+            authGeneration,
+            expectedBaseUrl,
+          )) {
+            return;
+          }
           if (decoded == null) {
             _topicListResponseCompleter?.complete(null);
             return;
@@ -872,23 +1040,54 @@ class PreloadedDataService {
           debugPrint(
             '[PreloadedData] topic_list 解析成功 (async), topics=$topicsCount',
           );
-          _parseTopicListResponseAsync(decoded);
+          _parseTopicListResponseAsync(
+            decoded,
+            siteGeneration: siteGeneration,
+            authGeneration: authGeneration,
+            expectedBaseUrl: expectedBaseUrl,
+          );
         })
         .catchError((e) {
+          if (!_isCurrentPreloadRun(
+            siteGeneration,
+            authGeneration,
+            expectedBaseUrl,
+          )) {
+            return;
+          }
           debugPrint('[PreloadedData] 异步解析 topic_list 失败: $e');
           _topicListResponseCompleter?.complete(null);
         });
   }
 
-  void _parseTopicListResponseAsync(Map<String, dynamic> data) {
+  void _parseTopicListResponseAsync(
+    Map<String, dynamic> data, {
+    required int siteGeneration,
+    required int authGeneration,
+    required String expectedBaseUrl,
+  }) {
     _topicListResponseCompleter ??= Completer<TopicListResponse?>();
     compute(_parseTopicListInIsolate, data)
         .then((result) {
+          if (!_isCurrentPreloadRun(
+            siteGeneration,
+            authGeneration,
+            expectedBaseUrl,
+          )) {
+            return;
+          }
           _cachedTopicListResponse = result;
           debugPrint('[PreloadedData] TopicListResponse 异步缓存成功');
           _topicListResponseCompleter?.complete(result);
         })
         .catchError((e) {
+          if (!_isCurrentPreloadRun(
+            siteGeneration,
+            authGeneration,
+            expectedBaseUrl,
+          )) {
+            return;
+          }
           debugPrint('[PreloadedData] 异步解析 TopicListResponse 失败: $e');
           _topicListResponseCompleter?.complete(null);
         });
@@ -905,10 +1104,22 @@ class PreloadedDataService {
     final rawJson = _topicTrackingStatesRawJson;
     if (rawJson == null || rawJson.isEmpty) return;
 
+    final siteGeneration = _siteGeneration;
+    final authGeneration = AuthSession().generation;
+    final expectedBaseUrl = AppConstants.baseUrl;
+
     final completer = Completer<List<Map<String, dynamic>>?>();
     _topicTrackingStatesCompleter = completer;
     try {
       final decoded = await compute(_decodeTopicTrackingStatesInIsolate, rawJson);
+      if (!_isCurrentPreloadRun(
+        siteGeneration,
+        authGeneration,
+        expectedBaseUrl,
+      )) {
+        completer.complete(null);
+        return;
+      }
       _topicTrackingStates = decoded;
       _topicTrackingStatesRawJson = null;
       debugPrint(

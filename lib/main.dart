@@ -79,6 +79,7 @@ import 'services/windows_webview_environment_service.dart';
 import 'services/user_presence_service.dart';
 import 'models/user.dart';
 import 'constants.dart';
+import 'config/site_context.dart';
 import 'providers/connectivity_provider.dart';
 import 'utils/dialog_utils.dart';
 import 'utils/frame_jank_monitor.dart';
@@ -259,8 +260,12 @@ Future<void> main() async {
   }
 
   // 阶段 1：并行执行所有不相互依赖的初始化
+  // prefs 先行获取：SiteContext（多论坛当前站点）必须在任何 baseUrl
+  // 读取（如 CookieJarService.initialize 的迁移逻辑）之前初始化，
+  // 否则会误用默认站点。
+  final prefs = await SharedPreferences.getInstance();
+  await SiteContext.instance.initialize(prefs);
   final futures = <Future<dynamic>>[
-    SharedPreferences.getInstance(),
     AppConstants.initUserAgent(),
     LogWriter.init(),
     ProxyCertificate.initialize(),
@@ -280,8 +285,7 @@ Future<void> main() async {
     futures.add(windowManager.ensureInitialized());
     futures.add(acrylic.Window.initialize());
   }
-  final results = await Future.wait(futures);
-  final prefs = results[0] as SharedPreferences;
+  await Future.wait(futures);
   await AuthIssueNoticeService.instance.initialize(prefs);
 
   // release 下按设置开关启用性能监控(debug/profile 已在上方无条件启用)

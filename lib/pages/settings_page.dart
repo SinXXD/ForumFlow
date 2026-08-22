@@ -17,6 +17,7 @@ import 'about_page.dart';
 import 'appearance_page.dart';
 import 'bottom_nav_settings_page.dart';
 import 'data_management_page.dart';
+import 'forum_manage_page.dart';
 import 'network_settings_page/network_settings_page.dart';
 import 'notion_settings_page.dart';
 import 'preferences_page.dart';
@@ -343,6 +344,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       children: [
         SegmentedCardGroup(
           children: [
+            // 论坛管理：多论坛切换入口（文案暂硬编码，未走 l10n，
+            // 见 forum_manage_page.dart 注释）
+            _buildOptionTile(
+              icon: Symbols.forum_rounded,
+              iconColor: Colors.blue,
+              title: '论坛管理',
+              onTap: () =>
+                  _openSettingsPage((_) => const ForumManagePage()),
+            ),
             _buildOptionTile(
               icon: Symbols.color_lens_rounded,
               iconColor: Colors.teal,

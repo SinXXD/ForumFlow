@@ -7,6 +7,7 @@ import 'package:app_icons/app_icons.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../../constants.dart';
+import '../../l10n/s.dart';
 import '../../services/auth_session.dart';
 import '../../services/cf_challenge_service.dart';
 import '../../services/discourse/discourse_service.dart';
@@ -60,7 +61,7 @@ class WebViewLoginNeed2FA {
 /// 显示 WebView 内 JS 全流程登录对话框。
 ///
 /// 在一个**与 CF 验证共享 WebView 环境**的 mini WebView 里, 用 data:url
-/// (baseUrl=linux.do, **不加载 Discourse Ember bundle**) 渲染 hcaptcha, 并在
+/// (current forum base URL, **不加载 Discourse Ember bundle**) 渲染 hcaptcha, 并在
 /// 同一个 WebView 内核里用 JS 同源 `fetch` 跑完整个登录:
 /// `GET /session/csrf` → `POST /hcaptcha/create.json` → `POST /session.json`。
 ///
@@ -72,7 +73,7 @@ class WebViewLoginNeed2FA {
 /// 返回 6 位 code (null=取消)。
 Future<WebViewLoginDialogResult?> showWebViewLoginDialog(
   BuildContext context, {
-  required String siteKey,
+  required String? siteKey,
   required String identifier,
   required String password,
   required Future<String?> Function(WebViewLoginNeed2FA need)
@@ -102,7 +103,7 @@ class _WebViewLoginDialog extends StatefulWidget {
     this.hcaptchaCreateEndpoint,
   });
 
-  final String siteKey;
+  final String? siteKey;
   final String identifier;
   final String password;
   final Future<String?> Function(WebViewLoginNeed2FA need) onNeedSecondFactor;
@@ -118,8 +119,10 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
   bool _processing = false; // hcaptcha 通过后登录请求进行中
   bool _finished = false; // 防止重复 pop / 回调重入
   bool _cookiesPrimed = false; // 方案 A: 是否已从 jar 预灌 cookie
-  bool _windowsInlineHtmlInjected = false;
+  bool _inlineHtmlInjected = false;
+  bool _siteKeyDiscoveryStarted = false;
   bool _cfRetryUsed = false; // CSRF 403 自动重验证只做一次, 避免死循环
+  String? _resolvedSiteKey;
   final int _flowGeneration = AuthSession().generation;
   // 最近一次 _runLogin 的参数, CSRF 403 重新过 CF 后用同样参数重跑。
   // CSRF 失败发生在 JS __fluxdoLogin 第一步 (fetch /session/csrf), 此时
@@ -127,6 +130,33 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
   // 也未用过。
   String? _lastHcaptchaToken;
   String? _lastSecondFactorToken;
+
+  static final RegExp _hcaptchaSiteKeyPattern = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedSiteKey = _normalizeSiteKey(widget.siteKey);
+  }
+
+  bool get _needsSiteKeyDiscovery => _resolvedSiteKey == null;
+
+  static String? _normalizeSiteKey(Object? value) {
+    var candidate = value?.toString().trim();
+    if (candidate == null || candidate.isEmpty) return null;
+    if (candidate.length >= 2 &&
+        candidate.startsWith('"') &&
+        candidate.endsWith('"')) {
+      try {
+        candidate = jsonDecode(candidate) as String;
+      } catch (_) {
+        return null;
+      }
+    }
+    return _hcaptchaSiteKeyPattern.hasMatch(candidate) ? candidate : null;
+  }
 
   @override
   void dispose() {
@@ -137,10 +167,10 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
   }
 
   /// data:url 内嵌页面: hcaptcha widget + 登录全流程 JS。
-  /// baseUrl=linux.do 让文档 origin 为 linux.do, JS fetch 相对路径同源,
+  /// 当前论坛 base URL 让文档 origin 与相对路径 fetch 保持同源,
   /// `credentials:'include'` 自动带共享 store 里的 cf_clearance/_forum_session。
   /// hcaptcha verify endpoint 候选: caller (从 Preferences) 优先, 然后
-  /// `/captcha/hcaptcha/create.json` (linux.do 当前路径), 最后
+  /// `/captcha/hcaptcha/create.json` (部分站点使用的路径), 最后
   /// `/hcaptcha/create.json` (Discourse plugin 原生路径)。
   /// 按顺序尝试, 第一个非 404/network-error 的就用。站长改 mount 时只需要
   /// 在 fluxdo 设置里填新 endpoint, 不用发版。
@@ -154,8 +184,16 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
     return list.toSet().toList(); // 去重保序
   }
 
-  WebUri get _windowsBootstrapUrl =>
-      WebUri('${AppConstants.baseUrl}/robots.txt');
+  WebUri get _bootstrapUrl => WebUri(
+        '${AppConstants.baseUrl}/${_needsSiteKeyDiscovery ? 'login' : 'robots.txt'}',
+      );
+
+  static String _escapeHtml(String value) => value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
 
   String get _inlineHtml {
     final scheme = Theme.of(context).colorScheme;
@@ -165,6 +203,28 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
     final subColor = hex(scheme.onSurfaceVariant);
     final accent = hex(scheme.primary);
     final endpointsJson = jsonEncode(_hcaptchaCreateEndpoints);
+    final l10n = context.l10n;
+    final hasHcaptcha = _resolvedSiteKey != null;
+    final instruction = _escapeHtml(
+      hasHcaptcha
+          ? l10n.forum_hcaptchaInstruction
+          : l10n.forum_hcaptchaNotConfigured,
+    );
+    final challenge = hasHcaptcha
+        ? '''
+    <div id="cap" class="h-captcha"
+      data-sitekey="${_resolvedSiteKey!}"
+      data-callback="onPass"
+      data-error-callback="onErr"
+      data-expired-callback="onExp"
+      data-size="normal"></div>'''
+        : '''
+    <button id="continue" class="continue" type="button" onclick="onContinue()">
+      ${_escapeHtml(l10n.forum_continueLogin)}
+    </button>''';
+    final hcaptchaScript = hasHcaptcha
+        ? '<script src="https://js.hcaptcha.com/1/api.js" async defer></script>'
+        : '';
     return '''
 <!DOCTYPE html>
 <html>
@@ -182,18 +242,15 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
     .tip { font-size: 14px; line-height: 1.6; color: $subColor; margin: 0; max-width: 260px; }
     .tip b { color: $titleColor; font-weight: 600; }
     .h-captcha { min-height: 78px; }
+    .continue { border: 0; border-radius: 999px; padding: 12px 24px; color: #ffffff;
+      background: $accent; font-size: 15px; cursor: pointer; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="badge">🛡️</div>
-    <p class="tip">勾选下方方框，<b>确认你不是机器人</b>即可继续登录</p>
-    <div id="cap" class="h-captcha"
-      data-sitekey="${widget.siteKey}"
-      data-callback="onPass"
-      data-error-callback="onErr"
-      data-expired-callback="onExp"
-      data-size="normal"></div>
+    <p class="tip">$instruction</p>
+    $challenge
   </div>
   <script>
     function call(name, payload) {
@@ -216,6 +273,7 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
     function onPass(token) { call('hcaptcha_pass', token); }
     function onErr(err)    { call('hcaptcha_error', String(err || 'unknown')); }
     function onExp()       { call('hcaptcha_expired', null); }
+    function onContinue()  { call('hcaptcha_continue', null); }
 
     // WebView 内核同源全流程登录。所有请求 credentials:'include' 带 store cookie。
     // 只设 X-CSRF-Token / X-Requested-With / Content-Type / Accept;
@@ -290,7 +348,7 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
       }
     };
   </script>
-  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+  $hcaptchaScript
 </body>
 </html>
 ''';
@@ -314,6 +372,13 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
         if (token != null && token.isNotEmpty) {
           _runLogin(hcaptchaToken: token, secondFactorToken: null);
         }
+        return null;
+      },
+    );
+    controller.addJavaScriptHandler(
+      handlerName: 'hcaptcha_continue',
+      callback: (_) {
+        _runLogin(hcaptchaToken: null, secondFactorToken: null);
         return null;
       },
     );
@@ -363,36 +428,32 @@ class _WebViewLoginDialogState extends State<_WebViewLoginDialog> {
     }
   }
 
-  /// Windows flutter_inappwebview 0.7.x 会用 WebView2 NavigateToString()
-  /// 加载 initialData, 原生层忽略 baseUrl, 导致文档不是 linux.do origin。
-  /// hCaptcha 会把 about:blank/opaque origin 判成 invalid-data。这里先导航到
-  /// linux.do 的轻量静态资源拿真实 origin, 再写入同一份内嵌登录页。
-  Future<void> _injectWindowsInlineHtml(
-    InAppWebViewController controller,
-  ) async {
-    if (_finished) return;
-    if (_windowsInlineHtmlInjected) {
-      return;
-    }
+  /// 在真实站点 origin 下写入最小登录页。
+  ///
+  /// 已知 sitekey 时直接使用轻量 bootstrap；未知 sitekey 时先加载当前站点
+  /// 的 `/login`，这里只从 DOM/HTML 中提取符合 hCaptcha UUID 格式的值，
+  /// 不读取页面文案，也不把页面内容当作指令。
+  Future<void> _injectInlineHtml(InAppWebViewController controller) async {
+    if (_finished || _inlineHtmlInjected) return;
     try {
-      final probe = await controller.evaluateJavascript(
-        source: '''
+      if (Platform.isWindows) {
+        final probe = await controller.evaluateJavascript(
+          source: '''
 ({
-  href: window.location.href,
   origin: window.location.origin,
-  contentType: document.contentType,
   readyState: document.readyState
 })
 ''',
-      );
-      final origin = probe is Map ? probe['origin']?.toString() : null;
-      if (origin != AppConstants.baseUrl) {
-        debugPrint('[WebViewLogin] Windows bootstrap origin not ready: $probe');
-        return;
+        );
+        final origin = probe is Map ? probe['origin']?.toString() : null;
+        if (origin != AppConstants.baseUrl) {
+          debugPrint('[WebViewLogin] bootstrap origin not ready: $probe');
+          return;
+        }
       }
 
       final html = jsonEncode(_inlineHtml);
-      _windowsInlineHtmlInjected = true;
+      _inlineHtmlInjected = true;
       await controller.evaluateJavascript(
         source:
             '''
@@ -402,8 +463,60 @@ document.close();
 ''',
       );
     } catch (e) {
-      debugPrint('[WebViewLogin] Windows hcaptcha bootstrap 失败: $e');
-      _finishFailure(LoginErrorKind.unknown, '人机验证页面初始化失败');
+      debugPrint('[WebViewLogin] inline login page bootstrap failed: $e');
+      if (mounted) {
+        _finishFailure(
+          LoginErrorKind.unknown,
+          context.l10n.forum_hcaptchaInitFailed,
+        );
+      }
+    }
+  }
+
+  Future<void> _discoverSiteKeyAndInject(
+    InAppWebViewController controller,
+  ) async {
+    if (_finished || _inlineHtmlInjected || _siteKeyDiscoveryStarted) return;
+    _siteKeyDiscoveryStarted = true;
+    try {
+      // Allow a site-rendered login form one short frame to add its captcha node.
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      final raw = await controller.evaluateJavascript(
+        source: r'''
+(() => {
+  const selectors = [
+    '[data-sitekey]',
+    '[data-hcaptcha-sitekey]',
+    '[data-captcha-sitekey]'
+  ];
+  for (const selector of selectors) {
+    const node = document.querySelector(selector);
+    if (!node) continue;
+    for (const attribute of ['data-sitekey', 'data-hcaptcha-sitekey', 'data-captcha-sitekey']) {
+      const value = node.getAttribute(attribute);
+      if (value) return value;
+    }
+  }
+  const html = document.documentElement?.outerHTML || '';
+  const match = html.match(/(?:data-sitekey|data-hcaptcha-sitekey|data-captcha-sitekey|sitekey)\s*[=:]\s*["']([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})["']/i);
+  return match ? match[1] : null;
+})()
+''',
+      );
+      _resolvedSiteKey = _normalizeSiteKey(raw);
+      debugPrint(
+        '[WebViewLogin] current site hCaptcha config discovered: '
+        '${_resolvedSiteKey != null}',
+      );
+      await _injectInlineHtml(controller);
+    } catch (e) {
+      debugPrint('[WebViewLogin] site hCaptcha discovery failed: $e');
+      if (mounted) {
+        _finishFailure(
+          LoginErrorKind.unknown,
+          context.l10n.forum_hcaptchaInitFailed,
+        );
+      }
     }
   }
 
@@ -436,7 +549,10 @@ document.close();
       );
     } catch (e) {
       debugPrint('[WebViewLogin] evaluate __fluxdoLogin 失败: $e');
-      _finishFailure(LoginErrorKind.unknown, '登录脚本执行失败');
+      _finishFailure(
+        LoginErrorKind.unknown,
+        mounted ? context.l10n.forum_loginScriptFailed : null,
+      );
     }
   }
 
@@ -447,7 +563,10 @@ document.close();
     try {
       payload = Map<String, dynamic>.from(jsonDecode(raw) as Map);
     } catch (_) {
-      _finishFailure(LoginErrorKind.unknown, '登录响应解析失败');
+      _finishFailure(
+        LoginErrorKind.unknown,
+        mounted ? context.l10n.forum_loginResponseParseFailed : null,
+      );
       return;
     }
 
@@ -464,16 +583,22 @@ document.close();
       case 'hcaptcha':
         _finishFailure(
           LoginErrorKind.unknown,
-          '人机验证失败, 请重试 (hcaptcha $status)',
+          context.l10n.forum_hcaptchaFailed(status),
         );
         return;
       case 'exception':
-        _finishFailure(LoginErrorKind.network, '登录请求异常: $body');
+        _finishFailure(
+          LoginErrorKind.network,
+          context.l10n.forum_loginRequestFailed,
+        );
         return;
       case 'session':
         break;
       default:
-        _finishFailure(LoginErrorKind.unknown, '未知登录阶段: $phase');
+        _finishFailure(
+          LoginErrorKind.unknown,
+          context.l10n.forum_unknownLoginPhase(phase ?? ''),
+        );
         return;
     }
 
@@ -504,14 +629,14 @@ document.close();
     if (_cfRetryUsed) {
       _finishFailure(
         LoginErrorKind.network,
-        'Cloudflare 验证已失效, 请重试 (CSRF $status)',
+        context.l10n.forum_cfVerificationExpired(status),
       );
       return;
     }
     _cfRetryUsed = true;
 
     if (mounted) {
-      ToastService.showInfo('Cloudflare 验证已失效, 正在重新验证...');
+      ToastService.showInfo(context.l10n.forum_cfRechecking);
     }
 
     // 1. 拉起 CF 手动验证页, 用户过完后 sync cookie 到 jar
@@ -520,7 +645,7 @@ document.close();
     if (ok != true) {
       _finishFailure(
         LoginErrorKind.network,
-        'Cloudflare 验证已失效, 请重试 (CSRF $status)',
+        context.l10n.forum_cfVerificationExpired(status),
       );
       return;
     }
@@ -596,12 +721,13 @@ document.close();
               controller,
               reason: 'native_login_success',
               pluginCandidates: PreloadedDataService().pluginCandidatesSync,
+              baseUrl: AppConstants.baseUrl,
             );
         bootstrapped = bootstrapResult.ok;
       }
       await BoundarySyncService.instance.syncFromWebView(
         controller: controller,
-        currentUrl: 'https://linux.do/',
+        currentUrl: AppConstants.baseUrl,
         cookieNames: null,
         allowLowConfidenceSessionCookies: true,
         requestGeneration: _flowGeneration,
@@ -713,12 +839,14 @@ document.close();
                                                 .instance
                                                 .environment
                                           : null,
-                                      initialUrlRequest: Platform.isWindows
-                                          ? URLRequest(
-                                              url: _windowsBootstrapUrl,
-                                            )
+                                      initialUrlRequest:
+                                          Platform.isWindows ||
+                                              _needsSiteKeyDiscovery
+                                          ? URLRequest(url: _bootstrapUrl)
                                           : null,
-                                      initialData: Platform.isWindows
+                                      initialData:
+                                          Platform.isWindows ||
+                                              _needsSiteKeyDiscovery
                                           ? null
                                           : InAppWebViewInitialData(
                                               data: _inlineHtml,
@@ -752,10 +880,14 @@ document.close();
                                         _setupHandlers(controller);
                                       },
                                       onLoadStop: (controller, _) async {
-                                        if (Platform.isWindows) {
-                                          await _injectWindowsInlineHtml(
+                                        if (_needsSiteKeyDiscovery) {
+                                          await _discoverSiteKeyAndInject(
                                             controller,
                                           );
+                                          return;
+                                        }
+                                        if (Platform.isWindows) {
+                                          await _injectInlineHtml(controller);
                                           return;
                                         }
                                         if (mounted) {
@@ -764,21 +896,30 @@ document.close();
                                       },
                                       onProgressChanged:
                                           (controller, progress) async {
-                                            if (Platform.isWindows &&
-                                                progress >= 100) {
-                                              await _injectWindowsInlineHtml(
-                                                controller,
-                                              );
+                                            if (progress >= 100) {
+                                              if (_needsSiteKeyDiscovery) {
+                                                await _discoverSiteKeyAndInject(
+                                                  controller,
+                                                );
+                                              } else if (Platform.isWindows) {
+                                                await _injectInlineHtml(
+                                                  controller,
+                                                );
+                                              }
                                             }
                                           },
                                       onReceivedError:
                                           (controller, request, error) async {
-                                            if (Platform.isWindows &&
-                                                request.isForMainFrame ==
-                                                    true) {
-                                              await _injectWindowsInlineHtml(
-                                                controller,
-                                              );
+                                            if (request.isForMainFrame == true) {
+                                              if (_needsSiteKeyDiscovery) {
+                                                await _discoverSiteKeyAndInject(
+                                                  controller,
+                                                );
+                                              } else if (Platform.isWindows) {
+                                                await _injectInlineHtml(
+                                                  controller,
+                                                );
+                                              }
                                             }
                                           },
                                     ),
@@ -805,7 +946,7 @@ document.close();
                                               const CircularProgressIndicator(),
                                               const SizedBox(height: 16),
                                               Text(
-                                                '正在登录…',
+                                                context.l10n.forum_loginProcessing,
                                                 style:
                                                     theme.textTheme.bodyMedium,
                                               ),
@@ -855,7 +996,7 @@ class _Header extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '完成人机验证',
+              context.l10n.forum_hcaptchaTitle,
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
@@ -863,7 +1004,7 @@ class _Header extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Symbols.close_rounded, size: 22),
-            tooltip: '取消',
+            tooltip: context.l10n.common_cancel,
             onPressed: onClose,
             visualDensity: VisualDensity.compact,
           ),

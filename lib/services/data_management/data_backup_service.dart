@@ -42,9 +42,13 @@ class DataBackupService {
     'bookmark_last_full_sync_',
     'blob_image_cache_last_sweep',
     // ── 会话 / 凭证(跨设备无效或有害)──
-    'linux_do_', // csrf_token / username
+    'linux_do_', // csrf_token / username（旧版 key）
+    'csrf_token_', // 多论坛：各站 CSRF token
     'cookie_',
     'auth_passive_logout_history',
+    'bg_notification_user_id_',
+    'bg_notification_last_message_id_',
+    'bg_long_polling_base_url_',
     'bg_shared_session_key',
     'one_time_password',
     // ── 设备绑定 / 运行态 ──

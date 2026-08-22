@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:hive_ce/hive.dart';
 
+import '../config/site_context.dart';
 import '../models/draft.dart';
 import '../storage/app_database.dart';
 
@@ -29,7 +30,9 @@ class LocalDraftStore {
            boxFactory ?? (() => AppDatabase.namedBox(_defaultBoxName)),
        _now = now ?? DateTime.now;
 
-  static const String _defaultBoxName = 'local_drafts';
+  /// 多论坛支持：草稿 box 按站点隔离。
+  static String get _defaultBoxName =>
+      'local_drafts_${SiteContext.instance.host}';
   static const String _dataKey = 'data';
   static const String _sequenceKey = 'sequence';
   static const String _updatedAtKey = 'updated_at';

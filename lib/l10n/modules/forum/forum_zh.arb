@@ -1,0 +1,93 @@
+{
+  "@@locale": "zh",
+  "forum_title": "论坛管理",
+  "forum_switchTitle": "切换论坛",
+  "forum_manageAction": "管理论坛",
+  "forum_switchTo": "切换到该论坛",
+  "forum_addNameLabel": "名称（可选，默认取站点标题）",
+  "forum_siteAddressLabel": "论坛地址",
+  "forum_siteAddressHint": "https://example.com",
+  "forum_addAction": "添加论坛",
+  "forum_addSuccess": "已添加「{name}」",
+  "@forum_addSuccess": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_deleteTitle": "删除论坛",
+  "forum_deleteMessage": "确定从列表移除「{name}」吗？已保存的登录态与本地数据会保留，之后重新添加同一论坛仍可继续使用。",
+  "@forum_deleteMessage": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_deleteFailed": "预置论坛或当前论坛不可删除",
+  "forum_current": "当前论坛：{name}",
+  "@forum_current": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_switchTooltip": "切换论坛（当前：{name}）",
+  "@forum_switchTooltip": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_description": "每个论坛拥有独立的登录态（Cookie、凭证、书签和草稿），切换互不影响；浏览历史与阅读偏好全局共享。",
+  "forum_hcaptchaTitle": "完成人机验证",
+  "forum_hcaptchaInstruction": "完成下方验证后继续登录。",
+  "forum_hcaptchaNotConfigured": "当前论坛没有公开 hCaptcha 配置，将直接尝试登录。",
+  "forum_continueLogin": "继续登录",
+  "forum_loginProcessing": "正在登录…",
+  "forum_hcaptchaInitFailed": "无法初始化人机验证页面",
+  "forum_loginScriptFailed": "无法执行登录脚本",
+  "forum_loginResponseParseFailed": "无法解析登录响应",
+  "forum_hcaptchaFailed": "人机验证失败，请重试（hCaptcha {status}）",
+  "@forum_hcaptchaFailed": {
+    "placeholders": {
+      "status": {"type": "int"}
+    }
+  },
+  "forum_loginRequestFailed": "登录请求失败",
+  "forum_unknownLoginPhase": "未知登录阶段：{phase}",
+  "@forum_unknownLoginPhase": {
+    "placeholders": {
+      "phase": {"type": "String"}
+    }
+  },
+  "forum_cfVerificationExpired": "Cloudflare 验证已失效，请重试（CSRF {status}）",
+  "@forum_cfVerificationExpired": {
+    "placeholders": {
+      "status": {"type": "int"}
+    }
+  },
+  "forum_cfRechecking": "Cloudflare 验证已失效，正在重新验证…",
+  "forum_openBrowserFailed": "无法打开浏览器，请重试",
+  "forum_cloudflareNotComplete": "Cloudflare 验证未完成，请重试",
+  "forum_twoFactorAppHint": "请输入身份验证器 App 显示的 6 位验证码",
+  "forum_twoFactorRequired": "此账号需要二步验证",
+  "forum_invalidCredentials": "用户名或密码错误",
+  "forum_twoFactorFailed": "二步验证失败",
+  "forum_accountNotActivated": "账号未激活，请到邮箱 {email} 完成激活",
+  "@forum_accountNotActivated": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "forum_accountNotApproved": "账号尚未通过审核",
+  "forum_passwordExpired": "密码已过期，请用浏览器登录重设密码",
+  "forum_networkError": "网络异常",
+  "forum_loginFailed": "登录失败",
+  "forum_savedCredentialsCleared": "已清除保存的账号密码",
+  "forum_clearSavedCredentials": "清除保存的账号",
+  "forum_browserAuthLogin": "浏览器授权登录",
+  "forum_otherLoginMethods": "其他方式登录（OAuth / Passkey / 注册）",
+  "forum_or": "或",
+  "forum_webviewLoginTitle": "登录 {name}",
+  "@forum_webviewLoginTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  }
+}

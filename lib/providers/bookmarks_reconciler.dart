@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/site_context.dart';
 import '../services/discourse/discourse_service.dart';
 import 'bookmarks_repository.dart';
 import 'core_providers.dart';
@@ -74,7 +75,9 @@ class BookmarksReconciler {
        _fetchPage = fetchPage,
        _preferences = preferences;
 
-  static const String _lastFullSyncKeyPrefix = 'bookmark_last_full_sync_';
+  /// 多论坛支持：同步时间戳 key 带站点前缀，不同论坛各自对账。
+  static String get _lastFullSyncKeyPrefix =>
+      'bookmark_last_full_sync_${SiteContext.instance.host}_';
   static const int _bookmarksPageLimit = 20;
 
   /// 完整对账的最小间隔——超过这个时间再进页面会自动触发后台 full 对账。

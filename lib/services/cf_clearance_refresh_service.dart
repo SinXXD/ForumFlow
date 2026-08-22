@@ -224,6 +224,20 @@ class CfClearanceRefreshService {
     CfChallengeLogger.log('[CfRefresh] 服务已停止');
   }
 
+  /// 切换论坛时清理旧站点的 Turnstile / cf_clearance 内存态。
+  /// CookieJar 中各域名的 cookie 仍然保留，回到旧论坛时可继续复用；
+  /// 这里只确保新站不会拿旧站 sitekey 或旧 WebView 运行态启动验证。
+  Future<void> resetForSiteSwitch() async {
+    await stop();
+    _sitekey = null;
+    _lastCookieValue = null;
+    _lastCookieExpiresAt = null;
+    _runningStartedAt = null;
+    _lastSignalAt = null;
+    _lastCookieAdvanceAt = null;
+    _consecutiveFailures = 0;
+  }
+
   // ---------------------------------------------------------------------------
   // WebView 管理
   // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/site_context.dart';
 import 'core_providers.dart';
 import 'bookmark_name_suggestions_provider.dart';
 import 'bookmark_sync_controller.dart';
@@ -23,13 +24,20 @@ class AppStateRefresher {
   /// 调用方用 [ProviderScope.containerOf] 取 container 后传入，
   /// 避免 [Future.delayed] 闭包持有的 [WidgetRef] 在延迟期间随 widget unmount 失效，
   /// 进而抛 StateError 中断后续 invalidate（曾导致登录后 ProfilePage 卡 loading）。
-  static void refreshAll(ProviderContainer container) {
+  static void refreshAll(
+    ProviderContainer container, {
+    bool force = false,
+  }) {
     // 去抖：2 秒内重复调用直接跳过（如 authStateProvider listener + _goToLogin 同时触发）
     final now = DateTime.now();
-    if (_lastRefreshTime != null && now.difference(_lastRefreshTime!) < const Duration(seconds: 2)) {
+    if (!force &&
+        _lastRefreshTime != null &&
+        now.difference(_lastRefreshTime!) < const Duration(seconds: 2)) {
       return;
     }
     _lastRefreshTime = now;
+    final refreshSiteId = SiteContext.instance.current.id;
+    final refreshSiteRevision = SiteContext.instance.revision;
 
     // 第一批：主页渲染必需（用户信息 + 分类 + 话题列表）
     for (final refresh in _coreRefreshers) {
@@ -38,6 +46,12 @@ class AppStateRefresher {
     _refreshTopicTabs(container);
     // 第二批：延迟 1 秒执行，避免并发请求过多触发风控
     Future.delayed(const Duration(seconds: 1), () {
+      // 站点已切换时，旧站点排队的延迟刷新不能再触碰新站状态；
+      // 新一轮 site-switch 会以 force=true 单独安排刷新。
+      if (SiteContext.instance.current.id != refreshSiteId ||
+          SiteContext.instance.revision != refreshSiteRevision) {
+        return;
+      }
       for (final refresh in _deferredRefreshers) {
         refresh(container);
       }

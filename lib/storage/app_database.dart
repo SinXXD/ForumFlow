@@ -5,6 +5,8 @@ import 'package:hive_ce/hive.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../config/site_context.dart';
+
 /// 应用级 Hive 存储初始化与按账号 box 工厂。
 ///
 /// 书签缓存采用「每账号一个 box」的方式做隔离，box 名形如
@@ -147,12 +149,15 @@ class AppDatabase {
     _initialized = true;
   }
 
+  /// 多论坛支持：box 名带站点前缀，同一账号在不同论坛的书签缓存互不串站。
   static String _bookmarkBoxName(String accountId) {
-    return '$_bookmarkBoxPrefix${_sanitize(accountId)}';
+    return '${_bookmarkBoxPrefix}${SiteContext.instance.host}_'
+        '${_sanitize(accountId)}';
   }
 
   static String _exportHistoryBoxName(String accountId) {
-    return '$_exportHistoryBoxPrefix${_sanitize(accountId)}';
+    return '${_exportHistoryBoxPrefix}${SiteContext.instance.host}_'
+        '${_sanitize(accountId)}';
   }
 
   static String _sanitize(String accountId) {

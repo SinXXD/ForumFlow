@@ -22,7 +22,8 @@ mixin _UsersMixin on _DiscourseServiceBase {
   Future<String?> getUsername() async {
     if (_username != null && _username!.isNotEmpty) return _username;
 
-    _username = await _storage.read(key: DiscourseService._usernameKey);
+    final usernameKey = DiscourseService._usernameKey;
+    _username = await _storage.read(key: usernameKey);
     if (_username != null && _username!.isNotEmpty) return _username;
 
     try {
@@ -31,7 +32,7 @@ mixin _UsersMixin on _DiscourseServiceBase {
       if (currentUser != null && currentUser['username'] != null) {
         _username = currentUser['username'] as String;
         await _storage.write(
-          key: DiscourseService._usernameKey,
+          key: usernameKey,
           value: _username!,
         );
         return _username;
@@ -86,6 +87,7 @@ mixin _UsersMixin on _DiscourseServiceBase {
 
   /// 从预加载数据获取当前用户
   Future<User?> getPreloadedCurrentUser() async {
+    final usernameKey = DiscourseService._usernameKey;
     try {
       final preloaded = PreloadedDataService();
       final currentUserData = await preloaded.getCurrentUser();
@@ -95,7 +97,7 @@ mixin _UsersMixin on _DiscourseServiceBase {
         if (user.username.isNotEmpty) {
           _username = user.username;
           await _storage.write(
-            key: DiscourseService._usernameKey,
+            key: usernameKey,
             value: _username!,
           );
         }

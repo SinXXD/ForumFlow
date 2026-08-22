@@ -30,4 +30,29 @@ class AppleCookieStrategy extends DefaultCookieStrategy {
       debugPrint('[CookieStrategy][Apple] HTTPCookieStorage clear failed: $e');
     }
   }
+
+  @override
+  Future<void> clearWebViewCookiesForHosts(
+    CookieManager cookieManager,
+    Set<String> knownHosts,
+  ) async {
+    await super.clearWebViewCookiesForHosts(cookieManager, knownHosts);
+
+    // WKHTTPCookieStore 与 HTTPCookieStorage.shared 是两套存储，
+    // Dart 侧逐 cookie 删除不能覆盖 shared storage，因此每个相关 host
+    // 都通过原生通道执行一次站点范围清理。
+    for (final host in knownHosts) {
+      try {
+        await _nativeCookieChannel.invokeMethod(
+          'clearCookies',
+          'https://$host',
+        );
+      } catch (e) {
+        debugPrint(
+          '[CookieStrategy][Apple] per-host shared cookie clear failed '
+          'for $host: $e',
+        );
+      }
+    }
+  }
 }
