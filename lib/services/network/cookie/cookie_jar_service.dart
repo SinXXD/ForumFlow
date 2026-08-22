@@ -562,6 +562,7 @@ class CookieJarService {
       final baseHost = baseUri.host.toLowerCase();
       final knownHosts = await getKnownHostsForDomain(baseHost);
       final jar = _cookieJar;
+      if (jar == null) return;
 
       if (jar is EnhancedPersistCookieJar) {
         final names = (await jar.readAllCookies())

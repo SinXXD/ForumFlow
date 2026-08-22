@@ -5,7 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../app_logger.dart';
-import '../../config/site_context.dart';
+import '../../../config/site_context.dart';
 import '../../auth_session.dart';
 import '../../storage/resilient_secure_storage.dart';
 

@@ -23,6 +23,33 @@ class DefaultCookieStrategy implements PlatformCookieStrategy {
   }
 
   @override
+  Future<void> clearWebViewCookiesForHosts(
+    CookieManager cookieManager,
+    Set<String> knownHosts,
+  ) async {
+    for (final host in knownHosts) {
+      final url = WebUri('https://$host');
+      try {
+        final cookies = await cookieManager.getCookies(url: url);
+        for (final cookie in cookies) {
+          await cookieManager.deleteCookie(
+            url: url,
+            name: cookie.name,
+            domain: cookie.domain,
+            path: cookie.path ?? '/',
+          );
+        }
+      } catch (e) {
+        // 单个 host 清理失败不阻断其它 host；调用方会继续清理 CookieJar。
+        debugPrint(
+          '[CookieStrategy] per-host WebView cookie clear failed '
+          'for $host: $e',
+        );
+      }
+    }
+  }
+
+  @override
   Future<int> writeRawCookiesToWebView(
     List<(String url, String rawHeader)> entries,
   ) async {
