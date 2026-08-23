@@ -24,7 +24,7 @@ detect_github_repo() {
     return
   fi
 
-  printf '%s\n' "SinXXD/fluxdo"
+  printf '%s\n' "SinXXD/ForumFlow"
 }
 
 if ! command -v docker >/dev/null 2>&1; then

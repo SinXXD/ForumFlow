@@ -9,8 +9,8 @@
   <description>
     <p>ForumFlow is a Flutter-based multi-forum Discourse client packaged for Flatpak distribution.</p>
   </description>
-  <url type="homepage">https://github.com/SinXXD/fluxdo</url>
-  <url type="bugtracker">https://github.com/SinXXD/fluxdo/issues</url>
+  <url type="homepage">https://github.com/SinXXD/ForumFlow</url>
+  <url type="bugtracker">https://github.com/SinXXD/ForumFlow/issues</url>
   <content_rating type="oars-1.1"/>
   <developer id="app.forumflow">
     <name>ForumFlow contributors</name>

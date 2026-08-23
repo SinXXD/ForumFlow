@@ -35,7 +35,7 @@ trim = true
 render_always = true
 postprocessors = [
     # 把裸 close/fix/resolve #N 转成 issue 链接
-    { pattern = '(?i)\b(close[sd]?|fix(es|ed)?|resolve[sd]?)\s+#(\d+)', replace = "$1 [#$3](https://github.com/SinXXD/fluxdo/issues/$3)" },
+    { pattern = '(?i)\b(close[sd]?|fix(es|ed)?|resolve[sd]?)\s+#(\d+)', replace = "$1 [#$3](https://github.com/SinXXD/ForumFlow/issues/$3)" },
 ]
 
 [git]

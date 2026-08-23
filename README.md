@@ -2,9 +2,9 @@
 
 > 一个面向多论坛场景的 Discourse 客户端：在一个应用里浏览、登录并切换不同社区。
 
-[![Android Nightly](https://github.com/SinXXD/fluxdo/actions/workflows/android-nightly.yaml/badge.svg)](https://github.com/SinXXD/fluxdo/actions/workflows/android-nightly.yaml)
+[![Android Nightly](https://github.com/SinXXD/ForumFlow/actions/workflows/android-nightly.yaml/badge.svg)](https://github.com/SinXXD/ForumFlow/actions/workflows/android-nightly.yaml)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
-[![GitHub Releases](https://img.shields.io/github/v/release/SinXXD/fluxdo?style=flat-square&logo=github)](https://github.com/SinXXD/fluxdo/releases)
+[![GitHub Releases](https://img.shields.io/github/v/release/SinXXD/ForumFlow?style=flat-square&logo=github)](https://github.com/SinXXD/ForumFlow/releases)
 
 ## 项目定位
 
@@ -21,7 +21,7 @@ ForumFlow 是论坛的第三方客户端，不代表上述论坛，也不属于 
 
 ## 二次开发声明
 
-本仓库是基于 [Lingyan000/fluxdo](https://github.com/Lingyan000/fluxdo) 的公开源代码进行的二次开发版本，当前维护仓库为 [SinXXD/fluxdo](https://github.com/SinXXD/fluxdo)。
+本仓库是基于 [Lingyan000/fluxdo](https://github.com/Lingyan000/fluxdo) 的公开源代码进行的二次开发版本，当前维护仓库为 [SinXXD/ForumFlow](https://github.com/SinXXD/ForumFlow)。
 
 在保留原项目主体能力的基础上，本版本主要进行了以下工作：
 
@@ -76,7 +76,7 @@ ForumFlow 是论坛的第三方客户端，不代表上述论坛，也不属于 
 
 ## 下载与构建
 
-正式版本和预发布版本发布在 [GitHub Releases](https://github.com/SinXXD/fluxdo/releases)。Android nightly workflow 位于 [GitHub Actions](https://github.com/SinXXD/fluxdo/actions/workflows/android-nightly.yaml)，当前只发布 `arm64-v8a` APK。
+正式版本和预发布版本发布在 [GitHub Releases](https://github.com/SinXXD/ForumFlow/releases)。Android nightly workflow 位于 [GitHub Actions](https://github.com/SinXXD/ForumFlow/actions/workflows/android-nightly.yaml)，当前只发布 `arm64-v8a` APK。
 
 ### 环境要求
 
@@ -88,8 +88,8 @@ ForumFlow 是论坛的第三方客户端，不代表上述论坛，也不属于 
 ### 初始化
 
 ```bash
-git clone https://github.com/SinXXD/fluxdo.git
-cd fluxdo
+git clone https://github.com/SinXXD/ForumFlow.git
+cd ForumFlow
 melos bootstrap
 just sync
 ```
@@ -114,7 +114,7 @@ dart run tool/flutterw.dart build apk \
 ## 项目结构
 
 ```text
-fluxdo/
+ForumFlow/
 ├── lib/
 │   ├── config/       # ForumFlow 与多论坛配置
 │   ├── models/       # 话题、用户、通知等模型
@@ -148,4 +148,4 @@ fluxdo/
 
 感谢 [Lingyan000/fluxdo](https://github.com/Lingyan000/fluxdo) 的原始实现，以及 Discourse 社区和所有贡献者提供的开源工作。
 
-问题反馈和二开版本相关建议请提交到 [本仓库 Issues](https://github.com/SinXXD/fluxdo/issues)。
+问题反馈和二开版本相关建议请提交到 [本仓库 Issues](https://github.com/SinXXD/ForumFlow/issues)。

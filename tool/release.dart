@@ -150,9 +150,9 @@ Future<void> main(List<String> args) async {
   stdout.writeln('==========================================');
   stdout.writeln('Tag: $tagName');
   stdout.writeln(
-    'GitHub Actions: https://github.com/SinXXD/fluxdo/actions',
+    'GitHub Actions: https://github.com/SinXXD/ForumFlow/actions',
   );
-  stdout.writeln('Releases: https://github.com/SinXXD/fluxdo/releases');
+  stdout.writeln('Releases: https://github.com/SinXXD/ForumFlow/releases');
   stdout.writeln('==========================================');
   stdout.writeln('');
   stdout.writeln(

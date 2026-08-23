@@ -7,7 +7,7 @@
       "bundleIdentifier": "app.forumflow",
       "developerName": "ForumFlow contributors",
       "localizedDescription": "A multi-forum Discourse client derived from the FluxDO project.",
-      "iconURL": "https://raw.githubusercontent.com/SinXXD/fluxdo/codex/multi-forum-nightly/web/icons/Icon-512.png",
+      "iconURL": "https://raw.githubusercontent.com/SinXXD/ForumFlow/main/web/icons/Icon-512.png",
       "versions": []
     }
   ]
