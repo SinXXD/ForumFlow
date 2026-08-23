@@ -12,10 +12,10 @@ ForumFlow 是一个基于 Flutter 的移动端和桌面端 Discourse 客户端�
 
 当前预置论坛包括：
 
-- [Linux.do](https://linux.do/)
-- [idcflare.com](https://idcflare.com/)
-- [www.nodeloc.com](https://www.nodeloc.com/)
-- [meta.appinn.net](https://meta.appinn.net/)
+- [LinuxDO](https://linux.do/)
+- [IDCFlare](https://idcflare.com/)
+- [NodeLoc](https://www.nodeloc.com/)
+- [小众软件](https://meta.appinn.net/)
 
 ForumFlow 是论坛的第三方客户端，不代表上述论坛，也不属于 Discourse 官方客户端。
 
