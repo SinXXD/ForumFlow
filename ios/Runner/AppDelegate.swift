@@ -66,7 +66,7 @@ import workmanager_apple
 
       // 注册浏览器 channel（应用链接解析与启动）
       let browserChannel = FlutterMethodChannel(
-        name: "com.github.lingyan000.fluxdo/browser",
+        name: "app.fluxdo/browser",
         binaryMessenger: controller.binaryMessenger
       )
       browserChannel.setMethodCallHandler { (call, result) in
@@ -92,7 +92,7 @@ import workmanager_apple
       }
 
       let appIconChannel = FlutterMethodChannel(
-        name: "com.github.lingyan000.fluxdo/app_icon",
+        name: "app.fluxdo/app_icon",
         binaryMessenger: controller.binaryMessenger
       )
       appIconChannel.setMethodCallHandler { (call, result) in

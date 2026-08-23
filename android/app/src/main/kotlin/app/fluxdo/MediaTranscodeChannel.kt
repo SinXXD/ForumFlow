@@ -1,4 +1,4 @@
-package com.github.lingyan000.fluxdo
+package app.fluxdo
 
 import android.content.Context
 import android.media.MediaMetadataRetriever

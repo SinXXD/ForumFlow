@@ -145,7 +145,7 @@ jobs:
               type == "object" and
               (.project_info | type == "object") and
               (.client | type == "array" and length > 0) and
-              any(.client[]; (.client_info.android_client_info.package_name // "") == "com.github.lingyan000.fluxdo")
+              any(.client[]; (.client_info.android_client_info.package_name // "") == "app.fluxdo")
             ' >/dev/null 2>&1; then
               printf '%s\n' "$decoded" > android/app/google-services.json
               config_source=secret
@@ -153,7 +153,7 @@ jobs:
               type == "object" and
               (.project_info | type == "object") and
               (.client | type == "array" and length > 0) and
-              any(.client[]; (.client_info.android_client_info.package_name // "") == "com.github.lingyan000.fluxdo")
+              any(.client[]; (.client_info.android_client_info.package_name // "") == "app.fluxdo")
             ' >/dev/null 2>&1; then
               printf '%s\n' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
               config_source=secret
@@ -168,7 +168,7 @@ jobs:
             type == "object" and
             (.project_info | type == "object") and
             (.client | type == "array" and length > 0) and
-            any(.client[]; (.client_info.android_client_info.package_name // "") == "com.github.lingyan000.fluxdo")
+            any(.client[]; (.client_info.android_client_info.package_name // "") == "app.fluxdo")
           ' android/app/google-services.json >/dev/null
 
           gcp_symbol_upload=false
@@ -203,8 +203,14 @@ jobs:
       - name: Upload Dart symbols to Crashlytics
         if: startsWith(matrix.platform, 'android') && steps.android_config.outputs.gcp_symbol_upload == 'true'
         run: |
+          firebase_app_id="$(jq -r '
+            .client[]
+            | select((.client_info.android_client_info.package_name // "") == "app.fluxdo")
+            | .client_info.mobilesdk_app_id // empty
+          ' android/app/google-services.json)"
+          test -n "$firebase_app_id"
           npx -y firebase-tools@latest crashlytics:symbols:upload \
-            --app=1:98542877021:android:e555169791c86bb9c950b4 \
+            --app="$firebase_app_id" \
             build/symbols
 
       - name: Archive Dart symbols
