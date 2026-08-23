@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/l10n/slang/strings.g.dart';
-import 'package:fluxdo/models/category.dart';
-import 'package:fluxdo/models/topic.dart';
-import 'package:fluxdo/providers/category_provider.dart';
-import 'package:fluxdo/providers/theme_provider.dart';
-import 'package:fluxdo/services/local_notification_service.dart';
-import 'package:fluxdo/widgets/topic/topic_preview_dialog.dart';
+import 'package:forumflow/l10n/slang/strings.g.dart';
+import 'package:forumflow/models/category.dart';
+import 'package:forumflow/models/topic.dart';
+import 'package:forumflow/providers/category_provider.dart';
+import 'package:forumflow/providers/theme_provider.dart';
+import 'package:forumflow/services/local_notification_service.dart';
+import 'package:forumflow/widgets/topic/topic_preview_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Topic _topic({String title = 'Preview Topic'}) {

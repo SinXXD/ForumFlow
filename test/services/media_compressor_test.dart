@@ -3,9 +3,9 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/services/media_transcoder/ffmpeg_process_transcoder.dart';
-import 'package:fluxdo/services/media_transcoder/media_compressor.dart';
-import 'package:fluxdo/services/media_transcoder/media_transcoder.dart';
+import 'package:forumflow/services/media_transcoder/ffmpeg_process_transcoder.dart';
+import 'package:forumflow/services/media_transcoder/media_compressor.dart';
+import 'package:forumflow/services/media_transcoder/media_transcoder.dart';
 
 void main() {
   group('码率预算(脚本同款)', () {

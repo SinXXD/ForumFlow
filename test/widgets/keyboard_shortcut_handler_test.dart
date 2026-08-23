@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/models/shortcut_binding.dart';
-import 'package:fluxdo/providers/shortcut_provider.dart';
-import 'package:fluxdo/providers/theme_provider.dart';
-import 'package:fluxdo/utils/platform_utils.dart';
-import 'package:fluxdo/widgets/keyboard_shortcut_handler.dart';
+import 'package:forumflow/models/shortcut_binding.dart';
+import 'package:forumflow/providers/shortcut_provider.dart';
+import 'package:forumflow/providers/theme_provider.dart';
+import 'package:forumflow/utils/platform_utils.dart';
+import 'package:forumflow/widgets/keyboard_shortcut_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum _RegistrationKind { searchSurface, detailScope, inactiveDetailScope }

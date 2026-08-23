@@ -13,7 +13,7 @@ import workmanager_apple
     GeneratedPluginRegistrant.register(with: self)
 
     // 注册 iOS 后台任务 handler（必须在 didFinishLaunchingWithOptions 返回前调用）
-    WorkmanagerPlugin.registerPeriodicTask(withIdentifier: "com.fluxdo.notificationPoll", frequency: nil)
+    WorkmanagerPlugin.registerPeriodicTask(withIdentifier: "com.forumflow.notificationPoll", frequency: nil)
 
     // 注册 cookie 同步 channel，用于将 cookie 写入 HTTPCookieStorage.shared
     // WKWebView 的 sharedCookiesEnabled 在创建时从 HTTPCookieStorage.shared 读取 cookie
@@ -24,7 +24,7 @@ import workmanager_apple
       )
       // 注册代理 CA 证书 channel（原生层 SSL challenge 拦截）
       let proxyCertChannel = FlutterMethodChannel(
-        name: "com.fluxdo/proxy_cert",
+        name: "com.forumflow/proxy_cert",
         binaryMessenger: controller.binaryMessenger
       )
       proxyCertChannel.setMethodCallHandler { (call, result) in
@@ -46,7 +46,7 @@ import workmanager_apple
 
       // 注册描述文件安装 channel
       let profileChannel = FlutterMethodChannel(
-        name: "com.fluxdo/profile_install",
+        name: "com.forumflow/profile_install",
         binaryMessenger: controller.binaryMessenger
       )
       profileChannel.setMethodCallHandler { [weak self] (call, result) in
@@ -66,7 +66,7 @@ import workmanager_apple
 
       // 注册浏览器 channel（应用链接解析与启动）
       let browserChannel = FlutterMethodChannel(
-        name: "app.fluxdo/browser",
+        name: "app.forumflow/browser",
         binaryMessenger: controller.binaryMessenger
       )
       browserChannel.setMethodCallHandler { (call, result) in
@@ -92,7 +92,7 @@ import workmanager_apple
       }
 
       let appIconChannel = FlutterMethodChannel(
-        name: "app.fluxdo/app_icon",
+        name: "app.forumflow/app_icon",
         binaryMessenger: controller.binaryMessenger
       )
       appIconChannel.setMethodCallHandler { (call, result) in
@@ -127,7 +127,7 @@ import workmanager_apple
       }
 
       let channel = FlutterMethodChannel(
-        name: "com.fluxdo/cookie_storage",
+        name: "com.forumflow/cookie_storage",
         binaryMessenger: controller.binaryMessenger
       )
       channel.setMethodCallHandler { [weak self] (call, result) in
@@ -153,7 +153,7 @@ import workmanager_apple
       // 用 HTTPCookie.cookies(withResponseHeaderFields:for:) 从原始头构造 cookie
       // 保留 host-only 等完整语义
       let rawCookieChannel = FlutterMethodChannel(
-        name: "com.fluxdo/raw_cookie",
+        name: "com.forumflow/raw_cookie",
         binaryMessenger: controller.binaryMessenger
       )
 
@@ -162,7 +162,7 @@ import workmanager_apple
       // 通知 Dart 端 sweep。internalWriteCount > 0 时 observer 忽略,
       // 避免我们自己 setCookie/delete 导致 sweep 循环。
       let cookieObserverChannel = FlutterMethodChannel(
-        name: "com.fluxdo/cookie_observer",
+        name: "com.forumflow/cookie_observer",
         binaryMessenger: controller.binaryMessenger
       )
       CookieStoreObserverHandler.shared.attach(channel: cookieObserverChannel)
@@ -747,7 +747,7 @@ import workmanager_apple
 //
 // 与 macOS MainFlutterWindow.swift 中同名类实现对称。
 // 注册 WKHTTPCookieStoreObserver 监听 WV 网络层 cookie 变化,
-// 通过 channel `com.fluxdo/cookie_observer` 通知 Dart sweep。
+// 通过 channel `com.forumflow/cookie_observer` 通知 Dart sweep。
 //
 // 防重入: 我们自己 setCookie/nukeAllVariants/deleteExactCookie 时,
 // internalWriteCount > 0, observer 看到事件就忽略,

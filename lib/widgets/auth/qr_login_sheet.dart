@@ -25,7 +25,7 @@ const Duration _kOtpWindow = Duration(minutes: 10);
 
 /// 防截屏通道(Android FLAG_SECURE;其余平台 no-op)。
 const MethodChannel _secureScreenChannel = MethodChannel(
-  'app.fluxdo/browser',
+  'app.forumflow/browser',
 );
 
 Future<void> _setSecureScreen(bool secure) async {

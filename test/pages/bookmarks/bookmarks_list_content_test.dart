@@ -3,13 +3,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/l10n/slang/strings.g.dart';
-import 'package:fluxdo/models/category.dart';
-import 'package:fluxdo/models/topic.dart';
-import 'package:fluxdo/providers/category_provider.dart';
-import 'package:fluxdo/providers/theme_provider.dart';
-import 'package:fluxdo/utils/platform_utils.dart';
-import 'package:fluxdo/widgets/bookmark/bookmarks_list_content.dart';
+import 'package:forumflow/l10n/slang/strings.g.dart';
+import 'package:forumflow/models/category.dart';
+import 'package:forumflow/models/topic.dart';
+import 'package:forumflow/providers/category_provider.dart';
+import 'package:forumflow/providers/theme_provider.dart';
+import 'package:forumflow/utils/platform_utils.dart';
+import 'package:forumflow/widgets/bookmark/bookmarks_list_content.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Topic _topic({required int id, required String title, String? bookmarkName}) {

@@ -1,4 +1,4 @@
-app-id: com.github.lingyan000.fluxdo.WpeLayer
+app-id: app.forumflow.WpeLayer
 runtime: org.gnome.Platform
 runtime-version: '48'
 sdk: org.gnome.Sdk

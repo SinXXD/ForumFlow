@@ -37,7 +37,7 @@ class AppLinkInfo {
 /// - 桌面平台：无原生实现，回退到 url_launcher
 class AppLinkService {
   static const _channel =
-      MethodChannel('app.fluxdo/browser');
+      MethodChannel('app.forumflow/browser');
 
   /// 解析应用链接，获取目标应用信息
   static Future<AppLinkInfo> resolveAppLink(String url) async {

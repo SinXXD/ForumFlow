@@ -1,7 +1,7 @@
-#define MyAppName "FluxDO"
+#define MyAppName "ForumFlow"
 #define MyAppExeName "fluxdo.exe"
-#define MyAppPublisher "FluxDO"
-#define MyAppURL "https://github.com/lingyan000/fluxdo"
+#define MyAppPublisher "ForumFlow"
+#define MyAppURL "https://github.com/SinXXD/fluxdo"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}

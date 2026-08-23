@@ -1,4 +1,4 @@
-package app.fluxdo
+package app.forumflow
 
 import android.app.Application
 import android.util.Log
@@ -6,10 +6,10 @@ import android.webkit.WebView
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 
-class FluxdoApplication : Application() {
+class ForumFlowApplication : Application() {
 
     companion object {
-        private var appInstance: FluxdoApplication? = null
+        private var appInstance: ForumFlowApplication? = null
 
         /**
          * 设置 Crashlytics 开关。

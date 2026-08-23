@@ -1,16 +1,20 @@
 # Flatpak 打包方案
 
-当前 Linux 发布链路改为“两层 CI”：
+当前仓库的 GitHub Actions 按项目约束只保留 Android arm64 nightly。Flatpak
+清单和脚本仍然保留，供 Linux 开发者本地打包或后续单独恢复发布链路；它们
+不会被当前 GitHub Actions 自动触发。
+
+历史 Linux 发布链路曾经采用“两层 CI”：
 
 - `flatpak-wpe-layer` 单独构建并发布预编译的 WPE 依赖层。
-- 主 `Build and Release` 先确保依赖层存在，再构建 Fluxdo 自己。
+- 主 `Build and Release` 先确保依赖层存在，再构建 ForumFlow 自己。
 
-## 当前设计
+## 历史设计（当前仅作本地打包参考）
 
 CI 分成三部分：
 
 0. `flatpak-wpe-layer`
-   - 使用 `flatpak/com.github.lingyan000.fluxdo.wpe-layer.yml` 单独构建：
+   - 使用 `flatpak/app.forumflow.wpe-layer.yml` 单独构建：
      - `unifdef`
      - `woff2`
      - `libwpe`
@@ -59,10 +63,9 @@ CI 分成三部分：
 
 ## 关键文件
 
-- `.github/workflows/build.yaml`
-- `.github/workflows/flatpak-wpe-layer.yaml`
-- `flatpak/com.github.lingyan000.fluxdo.yml`
-- `flatpak/com.github.lingyan000.fluxdo.wpe-layer.yml`
+- `.github/workflows/android-nightly.yaml`（当前唯一启用的 workflow；不构建 Flatpak）
+- `flatpak/app.forumflow.yml`
+- `flatpak/app.forumflow.wpe-layer.yml`
 - `flatpak/wpe-layer.version`
 - `linux/CMakeLists.txt`
 - `scripts/ci/flatpak/prepare_source_tree.sh`
@@ -106,8 +109,8 @@ bash scripts/ci/flatpak/prepare_source_tree.sh
 rm -rf flatpak/stage/source-tree
 mkdir -p flatpak/stage/source-tree
 tar -xzf .artifacts/flatpak/fluxdo-flatpak-source-tree.tar.gz -C flatpak/stage/source-tree
-flatpak-builder --user --install-deps-from=flathub --force-clean --repo=repo flatpak_app flatpak/com.github.lingyan000.fluxdo.yml
-flatpak build-bundle repo fluxdo-linux-x86_64.flatpak com.github.lingyan000.fluxdo stable
+flatpak-builder --user --install-deps-from=flathub --force-clean --repo=repo flatpak_app flatpak/app.forumflow.yml
+flatpak build-bundle repo forumflow-linux-x86_64.flatpak app.forumflow stable
 ```
 
 如果只想验证 SDK 里有没有对应开发包，可以按 Flatpak 官方文档提供的方式执行：
@@ -118,12 +121,11 @@ flatpak run --command=pkg-config org.gnome.Sdk//48 --modversion wpe-1.0
 flatpak run --command=pkg-config org.gnome.Sdk//48 --modversion libsecret-1
 ```
 
-如果要手动更新预编译 WPE 层：
+如果要在本地更新预编译 WPE 层：
 
 1. 修改 `flatpak/wpe-layer.version`
-2. 触发 `Build Flatpak WPE Layer`
-3. 等它发布新的 `flatpak-wpe-layer-<version>` prerelease 资产
-4. 再跑主 `Build and Release`
+2. 使用本地 `flatpak-builder` 或 `scripts/ci/flatpak/package_wpe_layer.sh` 构建
+3. 将生成的归档通过 `LOCAL_WPE_LAYER_ARCHIVE` 传给本地打包脚本
 
 如果要本地复用一个已经下载好的 WPE 层归档，可以这样跑：
 
@@ -136,6 +138,6 @@ bash scripts/ci/flatpak/run_local_package.sh
 如果要验证预编译依赖层已经被主 manifest 正确安装到 app build root，可以在 Flatpak 构建结束后检查：
 
 ```bash
-flatpak-builder --run flatpak_app flatpak/com.github.lingyan000.fluxdo.yml sh -lc \
+flatpak-builder --run flatpak_app flatpak/app.forumflow.yml sh -lc \
   'pkg-config --modversion wpe-webkit-2.0 && pkg-config --modversion wpe-platform-2.0 && pkg-config --modversion wpe-platform-headless-2.0'
 ```

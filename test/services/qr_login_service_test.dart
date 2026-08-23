@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/services/qr_login_service.dart';
+import 'package:forumflow/services/qr_login_service.dart';
 
 void main() {
   group('QrLoginService payload codec v2', () {
@@ -15,7 +15,7 @@ void main() {
         expiresAt: exp,
       );
       final raw = service.encodePayload(payload);
-      expect(raw.startsWith('fluxdo://qr-login?'), isTrue);
+      expect(raw.startsWith('forumflow://qr-login?'), isTrue);
       expect(raw.contains('k='), isTrue);
       expect(raw.contains('o='), isTrue);
 
@@ -47,7 +47,7 @@ void main() {
       expect(parsed.isExpired, isFalse);
     });
 
-    test('reject non fluxdo scheme and v1 token payload', () {
+    test('reject non ForumFlow scheme and v1 token payload', () {
       expect(service.parsePayload('https://linux.do/t/1'), isNull);
       expect(service.parsePayload('fluxdo://topic/1'), isNull);
       expect(service.parsePayload('not a uri'), isNull);

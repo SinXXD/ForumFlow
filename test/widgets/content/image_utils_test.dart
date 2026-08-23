@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/utils/url_helper.dart';
-import 'package:fluxdo/widgets/content/discourse_html_content/image_utils.dart';
+import 'package:forumflow/utils/url_helper.dart';
+import 'package:forumflow/widgets/content/discourse_html_content/image_utils.dart';
 
 void main() {
   setUp(() {

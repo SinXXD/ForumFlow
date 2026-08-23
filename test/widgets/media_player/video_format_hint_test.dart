@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/widgets/media_player/video/video_player_session.dart';
+import 'package:forumflow/widgets/media_player/video/video_player_session.dart';
 import 'package:video_player/video_player.dart';
 
 void main() {

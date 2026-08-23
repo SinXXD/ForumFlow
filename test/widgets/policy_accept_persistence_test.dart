@@ -9,11 +9,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/parser.dart' as html_parser;
 
-import 'package:fluxdo/l10n/s.dart';
-import 'package:fluxdo/models/topic.dart';
-import 'package:fluxdo/services/local_notification_service.dart';
-import 'package:fluxdo/widgets/content/discourse_html_content/builders/policy_builder.dart';
-import 'package:fluxdo/widgets/content/discourse_html_content/current_post_scope.dart';
+import 'package:forumflow/l10n/s.dart';
+import 'package:forumflow/models/topic.dart';
+import 'package:forumflow/services/local_notification_service.dart';
+import 'package:forumflow/widgets/content/discourse_html_content/builders/policy_builder.dart';
+import 'package:forumflow/widgets/content/discourse_html_content/current_post_scope.dart';
 
 void main() {
   Post makePost({

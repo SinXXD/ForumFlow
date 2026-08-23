@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=ForumFlow
+Comment=Multi-forum Discourse client
+Exec=fluxdo %u
+Icon=app.forumflow
+Terminal=false
+Type=Application
+Categories=Network;
+MimeType=x-scheme-handler/forumflow;x-scheme-handler/fluxdo;x-scheme-handler/discourse;
+StartupWMClass=fluxdo

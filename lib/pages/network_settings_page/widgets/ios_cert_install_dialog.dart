@@ -38,7 +38,7 @@ class _IosCertInstallSheetState extends State<_IosCertInstallSheet> {
   bool _regenerating = false;
 
   static const _browserChannel = MethodChannel(
-    'app.fluxdo/browser',
+    'app.forumflow/browser',
   );
 
   Future<void> _downloadProfile() async {

@@ -1,4 +1,4 @@
-package app.fluxdo
+package app.forumflow
 
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
@@ -33,8 +33,8 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val TAG = "AppLink"
-        private const val RAW_COOKIE_CHANNEL = "com.fluxdo/raw_cookie"
-        private const val WEBAUTHN_CHANNEL = "com.fluxdo/webauthn"
+        private const val RAW_COOKIE_CHANNEL = "com.forumflow/raw_cookie"
+        private const val WEBAUTHN_CHANNEL = "com.forumflow/webauthn"
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -58,9 +58,9 @@ class MainActivity : FlutterActivity() {
         super.onStop()
     }
 
-    private val CHANNEL = "app.fluxdo/browser"
-    private val CRASHLYTICS_CHANNEL = "app.fluxdo/crashlytics"
-    private val ICON_CHANNEL = "app.fluxdo/app_icon"
+    private val CHANNEL = "app.forumflow/browser"
+    private val CRASHLYTICS_CHANNEL = "app.forumflow/crashlytics"
+    private val ICON_CHANNEL = "app.forumflow/app_icon"
     private val mainHandler = Handler(Looper.getMainLooper())
 
     // Cookie IPC 专用后台线程。CookieManager 的 getCookie / setCookie /
@@ -79,7 +79,7 @@ class MainActivity : FlutterActivity() {
     @Synchronized
     private fun onCookieThread(block: () -> Unit) {
         val handler = cookieHandler ?: run {
-            val thread = HandlerThread("fluxdo-cookie").also { it.start() }
+            val thread = HandlerThread("forumflow-cookie").also { it.start() }
             cookieThread = thread
             Handler(thread.looper).also { cookieHandler = it }
         }
@@ -154,7 +154,7 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "setCrashlyticsEnabled" -> {
                     val enable = call.argument<Boolean>("enabled") ?: false
-                    FluxdoApplication.setCrashlytics(enable)
+                    ForumFlowApplication.setCrashlytics(enable)
                     result.success(null)
                 }
                 else -> result.notImplemented()

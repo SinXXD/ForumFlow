@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
-import 'package:fluxdo/models/topic.dart';
-import 'package:fluxdo/pages/bookmarks/bookmarks_models.dart';
+import 'package:forumflow/models/topic.dart';
+import 'package:forumflow/pages/bookmarks/bookmarks_models.dart';
 
 Topic _bookmarkTopic({
   required int topicId,

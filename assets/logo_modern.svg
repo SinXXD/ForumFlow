@@ -1,7 +1,24 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg version="1.2" baseProfile="tiny-ps" width="256" height="256" viewBox="-158 -158 1890 1890" xmlns="http://www.w3.org/2000/svg">
-    <title>LINUX DO</title>
-    <path fill="#1C1C1E" d="M787,0 a787,787 0 1,0 0,1574 a787,787 0 1,0 0,-1574 Z"/>
-    <path fill="#F0F0F3" d="M783.34,550.29 L413.34,375.67 C388.37,363.88 358.57,374.57 346.78,399.55 C343.63,406.22 342,413.51 342,420.89 L342,842 C342,869.62 364.38,892 392,892 L762,892 C789.62,892 812,869.62 812,842 L812,595.51 C812,576.16 800.84,558.55 783.34,550.29 Z M392,1022 h790 a50,50 0 0,1 50,50 v110 a50,50 0 0,1 -50,50 h-790 a50,50 0 0,1 -50,-50 v-110 a50,50 0 0,1 50,-50 Z"/>
-    <path fill="#FFB003" d="M1013.34,658.68 L1203.34,748.37 C1220.84,756.63 1232,774.24 1232,793.59 L1232,842 C1232,869.62 1209.62,892 1182,892 L992,892 C964.38,892 942,869.62 942,842 L942,703.89 C942,676.28 964.38,653.89 992,653.89 C999.38,653.89 1006.67,655.53 1013.34,658.68 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="modern-bg" x1="80" y1="40" x2="944" y2="984" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#09152B"/>
+      <stop offset="0.48" stop-color="#173D74"/>
+      <stop offset="1" stop-color="#5E4BC8"/>
+    </linearGradient>
+    <linearGradient id="modern-mark" x1="254" y1="246" x2="792" y2="812" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#55F0C7"/>
+      <stop offset="0.5" stop-color="#D5FFFF"/>
+      <stop offset="1" stop-color="#B795FF"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="976" height="976" rx="244" fill="#060D1F"/>
+  <rect x="56" y="56" width="912" height="912" rx="220" fill="url(#modern-bg)"/>
+  <path d="M214 566c0-206 166-372 372-372 100 0 191 40 258 105" fill="none" stroke="#69F1D0" stroke-width="34" stroke-linecap="round" opacity="0.35"/>
+  <path d="M810 458c0 206-166 372-372 372-100 0-191-40-258-105" fill="none" stroke="#B895FF" stroke-width="34" stroke-linecap="round" opacity="0.4"/>
+  <path d="M284 370c0-66 54-120 120-120h212c66 0 120 54 120 120v56c0 66-54 120-120 120H482l-112 96v-96h-22c-36 0-64-28-64-64V370Z" fill="#F9FDFF"/>
+  <path d="M354 438h266M354 510h158" stroke="#2A3A82" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="676" cy="510" r="17" fill="#53EFC8"/>
+  <path d="M384 650c0-62 50-112 112-112h138c62 0 112 50 112 112v40c0 62-50 112-112 112H508l-98 84v-84h-12c-62 0-112-50-112-112v-40Z" fill="url(#modern-mark)"/>
+  <path d="M482 670h178M482 732h108" stroke="#18245B" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="704" cy="732" r="15" fill="#18245B"/>
 </svg>

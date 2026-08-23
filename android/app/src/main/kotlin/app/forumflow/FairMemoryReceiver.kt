@@ -1,4 +1,4 @@
-package app.fluxdo
+package app.forumflow
 
 import android.content.BroadcastReceiver
 import android.content.Context

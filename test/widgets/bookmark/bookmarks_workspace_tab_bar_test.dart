@@ -1,10 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/l10n/slang/strings.g.dart';
-import 'package:fluxdo/pages/bookmarks/bookmarks_models.dart';
-import 'package:fluxdo/utils/platform_utils.dart';
-import 'package:fluxdo/widgets/bookmark/bookmarks_workspace_tab_bar.dart';
+import 'package:forumflow/l10n/slang/strings.g.dart';
+import 'package:forumflow/pages/bookmarks/bookmarks_models.dart';
+import 'package:forumflow/utils/platform_utils.dart';
+import 'package:forumflow/widgets/bookmark/bookmarks_workspace_tab_bar.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() {

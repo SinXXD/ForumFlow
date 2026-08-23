@@ -7,10 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/l10n/s.dart';
-import 'package:fluxdo/providers/shortcut_provider.dart';
-import 'package:fluxdo/services/local_notification_service.dart';
-import 'package:fluxdo/widgets/common/image_lift_menu.dart';
+import 'package:forumflow/l10n/s.dart';
+import 'package:forumflow/providers/shortcut_provider.dart';
+import 'package:forumflow/services/local_notification_service.dart';
+import 'package:forumflow/widgets/common/image_lift_menu.dart';
 
 Widget _wrap(Widget child) {
   return TranslationProvider(

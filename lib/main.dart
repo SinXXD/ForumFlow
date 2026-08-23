@@ -269,7 +269,7 @@ Future<void> main() async {
     AppConstants.initUserAgent(),
     LogWriter.init(),
     ProxyCertificate.initialize(),
-    // Windows 深链协议注册(discourse:// / fluxdo://):写 HKCU 免管理员,
+    // Windows 深链协议注册(discourse:// / forumflow:// / fluxdo://):写 HKCU 免管理员,
     // 幂等,失败不阻塞启动。其他平台由清单/plist 声明,此调用为 no-op。
     if (Platform.isWindows) ensureWindowsProtocolsRegistered(),
     CookieJarService().initialize(),
@@ -364,7 +364,7 @@ Future<void> main() async {
     ProxySettingsService.instance.initialize(prefs),
     if (Platform.isAndroid)
       MethodChannel(
-        'app.fluxdo/crashlytics',
+        'app.forumflow/crashlytics',
       ).invokeMethod('setCrashlyticsEnabled', {'enabled': crashlyticsEnabled}),
   ]);
   // rhttp (Rust reqwest) 初始化：在 ProxySettingsService 之后、NetworkSettingsService 之前
@@ -782,7 +782,7 @@ class MainApp extends ConsumerWidget {
                 JankNavObserver(),
                 EscFallbackObserver(),
               ],
-              title: 'FluxDO',
+              title: 'ForumFlow',
               locale: TranslationProvider.of(context).flutterLocale,
               localizationsDelegates: const [
                 GlobalMaterialLocalizations.delegate,

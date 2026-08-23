@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/services/audio/just_audio_gst.dart';
+import 'package:forumflow/services/audio/just_audio_gst.dart';
 import 'package:just_audio_platform_interface/just_audio_platform_interface.dart';
 
 /// 记录调用并允许测试手动喂事件的 audioplayers 假实现。

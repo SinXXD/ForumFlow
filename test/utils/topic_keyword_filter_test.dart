@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/models/topic.dart';
-import 'package:fluxdo/utils/topic_keyword_filter.dart';
+import 'package:forumflow/models/topic.dart';
+import 'package:forumflow/utils/topic_keyword_filter.dart';
 
 Topic _topic(int id, String title) => Topic(
   id: id,

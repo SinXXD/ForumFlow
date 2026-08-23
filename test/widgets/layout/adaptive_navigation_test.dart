@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/widgets/layout/adaptive_navigation.dart';
+import 'package:forumflow/widgets/layout/adaptive_navigation.dart';
 
 void main() {
   testWidgets(

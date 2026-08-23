@@ -1,32 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="1024dp"
-    android:height="1024dp"
+    android:width="108dp"
+    android:height="108dp"
     android:viewportWidth="1024"
     android:viewportHeight="1024">
-    
-    <group
-        android:scaleX="0.65"
-        android:scaleY="0.65"
-        android:pivotX="512"
-        android:pivotY="512">
-        
-        <!-- Base Circle (Background Ring + Middle) -> Low Opacity (20%) -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:fillAlpha="0.2"
-            android:pathData="M 512 64 A 448 448 0 1 0 512 960 A 448 448 0 1 0 512 64 Z" />
-
-        <!-- Top Segment -> Full Opacity (100%) -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:fillAlpha="1.0"
-            android:pathData="M 135.3 324 L 888.7 324 A 421 421 0 0 0 135.3 324 z" />
-            
-        <!-- Bottom Segment -> Medium Opacity (50%) -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:fillAlpha="0.5"
-            android:pathData="M 135.3 700 L 888.7 700 A 421 421 0 0 1 135.3 700 z" />
-            
-    </group>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M286,370c0,-66 54,-120 120,-120h210c66,0 120,54 120,120v58c0,66 -54,120 -120,120H478l-112,96v-96h-16c-36,0 -64,-28 -64,-64z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M388,648c0,-62 50,-112 112,-112h140c62,0 112,50 112,112v42c0,62 -50,112 -112,112H508l-98,84v-84h-10c-62,0 -112,-50 -112,-112z" />
 </vector>

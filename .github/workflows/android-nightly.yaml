@@ -110,7 +110,7 @@ jobs:
               type == "object" and
               (.project_info | type == "object") and
               (.client | type == "array" and length > 0) and
-              any(.client[]; (.client_info.android_client_info.package_name // "") == "app.fluxdo")
+              any(.client[]; (.client_info.android_client_info.package_name // "") == "app.forumflow")
             ' >/dev/null 2>&1; then
               printf '%s\n' "$decoded" > android/app/google-services.json
               config_source=secret
@@ -118,7 +118,7 @@ jobs:
               type == "object" and
               (.project_info | type == "object") and
               (.client | type == "array" and length > 0) and
-              any(.client[]; (.client_info.android_client_info.package_name // "") == "app.fluxdo")
+              any(.client[]; (.client_info.android_client_info.package_name // "") == "app.forumflow")
             ' >/dev/null 2>&1; then
               printf '%s\n' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
               config_source=secret
@@ -133,7 +133,7 @@ jobs:
             type == "object" and
             (.project_info | type == "object") and
             (.client | type == "array" and length > 0) and
-            any(.client[]; (.client_info.android_client_info.package_name // "") == "app.fluxdo")
+            any(.client[]; (.client_info.android_client_info.package_name // "") == "app.forumflow")
           ' android/app/google-services.json >/dev/null
 
           gcp_symbol_upload=false
@@ -155,7 +155,7 @@ jobs:
           cmp -s core/doh_proxy/certs/ca.der android/app/src/main/res/raw/proxy_ca.der
           cmp -s core/doh_proxy/certs/ca.crt assets/certs/proxy_ca.pem
           mkdir -p dist
-          mv build/app/outputs/flutter-apk/app-release.apk dist/fluxdo-${{ matrix.arch }}.apk
+          mv build/app/outputs/flutter-apk/app-release.apk dist/forumflow-${{ matrix.arch }}.apk
 
       - name: Authenticate to Google Cloud
         if: steps.android_config.outputs.gcp_symbol_upload == 'true'
@@ -169,7 +169,7 @@ jobs:
         run: |
           firebase_app_id="$(jq -r '
             .client[]
-            | select((.client_info.android_client_info.package_name // "") == "app.fluxdo")
+            | select((.client_info.android_client_info.package_name // "") == "app.forumflow")
             | .client_info.mobilesdk_app_id // empty
           ' android/app/google-services.json)"
           test -n "$firebase_app_id"
@@ -180,7 +180,7 @@ jobs:
       - name: Archive Dart symbols
         uses: actions/upload-artifact@v4
         with:
-          name: dart-symbols-${{ matrix.arch }}
+          name: forumflow-dart-symbols-${{ matrix.arch }}
           path: build/symbols
           retention-days: 90
           if-no-files-found: error
@@ -188,8 +188,8 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk-${{ matrix.arch }}
-          path: dist/fluxdo-${{ matrix.arch }}.apk
+          name: forumflow-android-apk-${{ matrix.arch }}
+          path: dist/forumflow-${{ matrix.arch }}.apk
           retention-days: 90
           if-no-files-found: error
 
@@ -203,7 +203,7 @@ jobs:
       - name: Download APK artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: android-apk-*
+          pattern: forumflow-android-apk-*
           path: dist
           merge-multiple: true
 
@@ -211,9 +211,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: FluxDO Android Nightly ${{ github.ref_name }}
+          name: ForumFlow Android Nightly ${{ github.ref_name }}
           body: |
-            Android-only nightly build for FluxDO.
+            Android-only nightly build for ForumFlow.
 
             Included ABI: arm64-v8a.
           prerelease: true

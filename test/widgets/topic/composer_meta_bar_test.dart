@@ -4,10 +4,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/l10n/s.dart';
-import 'package:fluxdo/models/category.dart';
-import 'package:fluxdo/services/local_notification_service.dart';
-import 'package:fluxdo/widgets/topic/topic_editor_helpers.dart';
+import 'package:forumflow/l10n/s.dart';
+import 'package:forumflow/models/category.dart';
+import 'package:forumflow/services/local_notification_service.dart';
+import 'package:forumflow/widgets/topic/topic_editor_helpers.dart';
 
 Widget _wrap(Widget child) {
   return TranslationProvider(

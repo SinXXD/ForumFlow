@@ -1,4 +1,4 @@
-package app.fluxdo
+package app.forumflow
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
@@ -34,7 +34,7 @@ import java.io.File
  */
 @UnstableApi
 object MediaTranscodeChannel {
-    private const val CHANNEL = "com.fluxdo/media_transcode"
+    private const val CHANNEL = "com.forumflow/media_transcode"
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var transformer: Transformer? = null

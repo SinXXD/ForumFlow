@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/services/network/adapters/webview_http_adapter.dart';
+import 'package:forumflow/services/network/adapters/webview_http_adapter.dart';
 
 void main() {
   group('WebViewHttpAdapter.resolveFetchCacheMode', () {

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/services/cf_clearance_registry.dart';
-import 'package:fluxdo/services/network/cookie/cookie_value_codec.dart';
+import 'package:forumflow/services/cf_clearance_registry.dart';
+import 'package:forumflow/services/network/cookie/cookie_value_codec.dart';
 
 /// 「被拒即永拒」墓碑的契约。
 ///

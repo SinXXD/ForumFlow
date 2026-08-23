@@ -1,174 +1,151 @@
-# FluxDO
+# ForumFlow
 
-> 一个真诚、友善、团结、专业的 [Linux.do](https://linux.do/) 第三方客户端
+> 一个面向多论坛场景的 Discourse 客户端：在一个应用里浏览、登录并切换不同社区。
 
-[![Telegram Channel](https://img.shields.io/badge/Telegram-Channel-26A5E4?logo=telegram&logoColor=white)](https://t.me/ldxfd)
-[![Telegram Group](https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white)](https://t.me/fluxdo_chat)
+[![Android Nightly](https://github.com/SinXXD/fluxdo/actions/workflows/android-nightly.yaml/badge.svg)](https://github.com/SinXXD/fluxdo/actions/workflows/android-nightly.yaml)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![GitHub Releases](https://img.shields.io/github/v/release/SinXXD/fluxdo?style=flat-square&logo=github)](https://github.com/SinXXD/fluxdo/releases)
 
-FluxDO 是为 [Linux.do](https://linux.do/) 社区打造的现代化移动和桌面客户端，基于 Flutter 开发，致力于为用户提供流畅、优雅的论坛浏览体验。
+## 项目定位
 
-## 下载
+ForumFlow 是一个基于 Flutter 的移动端和桌面端 Discourse 客户端，重点解决多论坛用户的日常切换问题：每个论坛拥有独立的登录态、Cookie、API key、CSRF 凭证和本地内容缓存，切换论坛不会覆盖其他论坛的数据。
 
-<a href="https://github.com/lingyan000/fluxdo/releases"><img alt="Get it on GitHub" src="https://img.shields.io/github/v/release/lingyan000/fluxdo?style=for-the-badge&logo=github&label=GitHub%20Releases" /></a>
-<a href="altstore://source?url=https://lingyan000.github.io/fluxdo/source.json"><img alt="Add to AltStore" src="https://img.shields.io/badge/AltStore-Add_Source-0c6bff?style=for-the-badge&logo=apple" /></a>
+当前预置论坛包括：
 
-### AltStore 安装
+- [Linux.do](https://linux.do/)
+- [idcflare.com](https://idcflare.com/)
+- [www.nodeloc.com](https://www.nodeloc.com/)
+- [meta.appinn.net](https://meta.appinn.net/)
 
-1. 在 iOS 设备上安装 [AltStore](https://altstore.io/)
-2. 打开 AltStore，进入 **Browse** → **Sources** → 点击左上角 **+**
-3. 粘贴源地址：
-   ```
-   https://lingyan000.github.io/fluxdo/source.json
-   ```
-4. 在源中找到 FluxDO 并安装
+ForumFlow 是论坛的第三方客户端，不代表上述论坛，也不属于 Discourse 官方客户端。
 
-![FluxDO 预览](screenshots/preview.png)
+## 二次开发声明
 
-## 特性
+本仓库是基于 [Lingyan000/fluxdo](https://github.com/Lingyan000/fluxdo) 的公开源代码进行的二次开发版本，当前维护仓库为 [SinXXD/fluxdo](https://github.com/SinXXD/fluxdo)。
 
-### 核心功能
-- **跨平台支持**：Android、iOS、Windows、macOS、Linux
-- **Material Design 3**：现代化 UI 设计，支持动态取色
-- **深色模式**：自动适配系统主题
-- **完整论坛功能**：浏览话题、发帖回复、搜索、通知
-- **内容管理**：书签、浏览历史、关注列表
-- **徽章系统**：查看和展示社区徽章
-- **Markdown 编辑器**：支持富文本编辑和预览
-- **图片支持**：图片上传、查看、保存
-- **投票功能**：参与社区投票
+在保留原项目主体能力的基础上，本版本主要进行了以下工作：
 
-### 技术特性
-- **安全连接**：集成 Rust 实现的 DOH (DNS over HTTPS) 代理
-- **性能优化**：图片缓存、懒加载、代码高亮
-- **实时通知**：MessageBus 实时消息推送
-- **智能渲染**：HTML 内容分块渲染，流畅滚动
+- 将应用重新命名为 **ForumFlow**，并更换应用图标、平台标识和包名；
+- 增加多论坛管理与无确认快速切换；
+- 为不同论坛隔离登录状态、会话凭证、Cookie、草稿、书签和本地缓存；
+- 支持游客模式浏览，并保留论坛级别的站点定制；
+- 调整 Android 发布流程，当前 nightly 只构建 `arm64-v8a`。
 
-## 快速开始
+原项目的作者、贡献者和许可证义务仍然受到尊重。遇到与原始实现相关的问题时，也请优先参考[上游仓库](https://github.com/Lingyan000/fluxdo)的历史和文档。
 
-### 前置要求
+## 品牌与平台标识
 
-- Flutter SDK ^3.10.4
-- Rust 工具链（用于编译 DOH 代理）
-- Android Studio / Xcode（移动端开发）
+| 项目 | ForumFlow 标识 |
+| --- | --- |
+| 应用名称 | `ForumFlow` |
+| Dart 应用包名 | `forumflow` |
+| Android namespace / applicationId | `app.forumflow` |
+| iOS / macOS bundle identifier | `app.forumflow` |
+| 新版自定义深链 | `forumflow://` |
+| 旧版深链兼容 | `fluxdo://` |
 
-### 安装步骤
+新版图标使用深靛渐变背景、叠加对话气泡和流动节点，表达“多个社区之间连续切换”的产品定位。图标母版和各平台生成脚本位于 [`assets/logo_forumflow.svg`](assets/logo_forumflow.svg) 与 [`tools/generate_forumflow_icons.ps1`](tools/generate_forumflow_icons.ps1)。
 
-1. **克隆仓库**
-   ```bash
-   git clone https://github.com/Lingyan000/fluxdo.git
-   cd fluxdo
-   ```
+## 主要功能
 
-2. **初始化工作区**
-   ```bash
-   melos bootstrap
-   ```
-   如果没有安装全局 `melos`，可改用 `dart run melos bootstrap`。
-   这一步只负责 workspace 依赖和链接初始化。
+### 多论坛能力
 
-3. **安装 `just`**
-   - Windows：`winget install --id Casey.Just --exact`
-   - Windows：`scoop install just`
-   - Windows：`choco install just`
-   - 通用：`cargo install just`
+- 设置页和个人主页提供论坛切换入口；
+- 论坛切换无需确认，适合频繁切换；
+- 每个论坛独立保存登录态和本地数据；
+- 支持游客进入论坛，不要求先登录；
+- 可探测并添加其他 Discourse 站点；
+- 站点配置保存后可随时切回，不把自定义地址当作原论坛替换。
 
-4. **同步项目状态**
-   ```bash
-   just sync
-   ```
-   这一步会统一完成 `flutter pub get`、l10n 生成和代理证书资源同步。
+### 论坛功能
 
-5. **运行应用**
-   ```bash
-   just run -- -d windows
-   just run -- -d macos
-   just run -- --dart-define=cronetHttpNoPlay=true
-   ```
+- 浏览话题、发帖、回复、搜索和通知；
+- 书签、浏览历史、关注列表和徽章；
+- Markdown 编辑与预览；
+- 图片、音频和视频内容处理；
+- 投票、聊天、分享图片和深色模式；
+- Android、iOS、Windows、macOS、Linux 和 Web 支持。
 
-   如果你不想安装 `just`，也可以直接调用 Dart 入口：
-   ```bash
-   dart run tool/project_prep.dart app
-   dart run tool/flutterw.dart run -d windows
-   ```
+### 工程能力
 
-## 开发
+- Material Design 3 与动态主题；
+- Rust DOH（DNS over HTTPS）代理；
+- 图片缓存、懒加载和代码高亮；
+- MessageBus 实时通知；
+- HTML 分块渲染与 WebView 会话管理。
 
-开发相关的工程化细节已经拆到独立文档，根 README 只保留最短路径。
+## 下载与构建
 
-- [开发环境与日常命令](docs/development.md)
-- [发版与 iOS IPA](docs/release.md)
-- [Flatpak 打包说明](docs/flatpak.md)
+正式版本和预发布版本发布在 [GitHub Releases](https://github.com/SinXXD/fluxdo/releases)。Android nightly workflow 位于 [GitHub Actions](https://github.com/SinXXD/fluxdo/actions/workflows/android-nightly.yaml)，当前只发布 `arm64-v8a` APK。
+
+### 环境要求
+
+- Flutter SDK `^3.10.4`；
+- Rust 工具链，用于编译 DOH 代理；
+- Android Studio / Xcode，用于移动端开发；
+- `melos` 和 `just`，用于 workspace 初始化及常用命令。
+
+### 初始化
+
+```bash
+git clone https://github.com/SinXXD/fluxdo.git
+cd fluxdo
+melos bootstrap
+just sync
+```
+
+也可以不安装全局 `just`，直接执行：
+
+```bash
+dart run tool/project_prep.dart app
+dart run tool/flutterw.dart pub get
+```
+
+### Android arm64 构建
+
+```bash
+dart run tool/flutterw.dart build apk \
+  --release \
+  --target-platform android-arm64 \
+  --dart-define=cronetHttpNoPlay=true \
+  --split-debug-info=build/symbols
+```
 
 ## 项目结构
 
-```
+```text
 fluxdo/
 ├── lib/
-│   ├── config/              # 应用配置
-│   ├── models/              # 数据模型（话题、用户、通知等）
-│   ├── modules/             # 功能模块
-│   ├── pages/               # 页面组件
-│   ├── providers/           # Riverpod 状态管理
-│   ├── services/            # 业务逻辑服务
-│   │   ├── network/         # 网络层（DOH、代理、适配器）
-│   │   └── ...
-│   ├── utils/               # 工具类
-│   ├── widgets/             # 可复用组件
-│   └── main.dart
-├── core/
-│   └── doh_proxy/           # Rust DOH 代理实现
-├── packages/                # 本地依赖包
-├── scripts/
-│   └── ci/                  # CI / 打包链路内部脚本
+│   ├── config/       # ForumFlow 与多论坛配置
+│   ├── models/       # 话题、用户、通知等模型
+│   ├── modules/      # 功能模块
+│   ├── pages/        # 页面
+│   ├── providers/    # Riverpod 状态管理
+│   ├── services/     # 业务服务与网络层
+│   └── widgets/      # 可复用组件
+├── core/doh_proxy/   # Rust DOH 代理
+├── packages/         # 本地 workspace 依赖
+├── scripts/          # 构建与开发脚本
 └── pubspec.yaml
 ```
 
-## 技术栈
+开发环境与日常命令见 [docs/development.md](docs/development.md)，发布说明见 [docs/release.md](docs/release.md)。
 
-- **前端框架**：Flutter
-- **状态管理**：Riverpod
-- **网络请求**：Dio + Native Dio Adapter
-- **HTML 渲染**：flutter_widget_from_html
-- **代码高亮**：re_highlight + google_fonts (FiraCode)
-- **图片处理**：extended_image + cached_network_image
-- **本地存储**：shared_preferences + flutter_secure_storage
-- **网络代理**：Rust (DOH + ECH)
+## 许可证与再发布
 
-## DOH 代理功能
+本项目继续使用原仓库的 **GNU General Public License v3.0（GPL-3.0）**，完整文本见 [`LICENSE`](LICENSE)。本二开版本没有在 GPL-3.0 之外增加额外的使用限制：在遵守 GPL-3.0 的前提下，可以自由使用、研究、修改、复制、再发布本项目，也可以用于商业用途。
 
-FluxDO 集成了基于 Rust 的 DOH (DNS over HTTPS) 代理，提供：
+再发布或发布修改版本时，请至少履行 GPL-3.0 要求：
 
-- **DNS 加密查询**：防止 DNS 污染和劫持
-- **多服务器支持**：DNSPod、腾讯 DNS、阿里 DNS、Cloudflare、Canadian Shield、Google、Quad9
-- **ECH 支持**：加密 TLS 握手中的 SNI 字段（用户无感知）
-- **跨平台实现**：
-  - Android/iOS：FFI 调用
-  - Windows/macOS/Linux：独立进程
+- 保留许可证文本和原作者/贡献者的版权声明；
+- 向接收者提供相应的源代码或有效的源代码获取方式；
+- 明确标注本版本相对于上游的修改；
+- 不把本项目改造成附加了额外限制的衍生发行版。
 
-详细文档请参考 [core/doh_proxy/README.md](https://github.com/Lingyan000/fluxdo_doh)
+本仓库中的第三方依赖、字体、图标和其他外部资源仍可能受各自许可证约束，应以其随附的许可证文件为准。ForumFlow、FluxDO、Linux.do 以及相关站点名称和标志的商标权归其各自权利人所有。
 
-## 关于 Linux.do
+## 致谢与反馈
 
-[Linux.do](https://linux.do/) 是一个真诚、友善、团结、专业的技术社区，汇聚了众多热爱技术、乐于分享的开发者。FluxDO 作为第三方客户端，致力于为社区成员提供更好的移动和桌面端体验。
+感谢 [Lingyan000/fluxdo](https://github.com/Lingyan000/fluxdo) 的原始实现，以及 Discourse 社区和所有贡献者提供的开源工作。
 
-**注意**：本项目为非官方客户端，与 Linux.do 官方无直接关联。
-
-## 问题反馈
-
-如果您在使用过程中遇到问题或有建议，欢迎：
-- 在 [Linux.do](https://linux.do/) 论坛发帖讨论
-- 提交 [Issue](https://github.com/Lingyan000/fluxdo/issues)
-
-## 开源协议
-
-本项目基于 [GPL-3.0](LICENSE) 协议开源。
-
-## 致谢
-
-感谢 [Linux.do](https://linux.do/) 社区的所有成员，是你们的真诚、友善、团结、专业让这个社区充满活力。
-
-## 相关文档
-
-- [开发环境与日常命令](docs/development.md)
-- [Flatpak 打包说明](docs/flatpak.md)
-- [发版与 iOS IPA](docs/release.md)
+问题反馈和二开版本相关建议请提交到 [本仓库 Issues](https://github.com/SinXXD/fluxdo/issues)。

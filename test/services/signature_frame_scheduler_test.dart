@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/services/signature_frame_scheduler.dart';
+import 'package:forumflow/services/signature_frame_scheduler.dart';
 
 void main() {
   final scheduler = SignatureFrameScheduler.instance;

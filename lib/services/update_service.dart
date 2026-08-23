@@ -83,7 +83,7 @@ class UpdateInfo {
 
 /// 应用更新检查服务
 class UpdateService {
-  static const String _repository = 'Lingyan000/fluxdo';
+  static const String _repository = 'SinXXD/fluxdo';
   static const String _apiUrl =
       'https://api.github.com/repos/$_repository/releases/latest';
   static const String _autoCheckUpdateKey = 'auto_check_update';
@@ -238,7 +238,7 @@ class UpdateService {
         options: Options(
           responseType: ResponseType.json,
           headers: {
-            'User-Agent': 'FluxDO-App',
+            'User-Agent': 'ForumFlow-App',
             'Accept': 'application/vnd.github.v3+json',
             if (storedEtag != null) 'If-None-Match': storedEtag,
           },
@@ -382,7 +382,7 @@ class UpdateService {
       if (!name.endsWith('.apk')) continue;
 
       // 从文件名中提取架构
-      // 例如：fluxdo-0.1.11-arm64-v8a.apk
+      // 例如：forumflow-0.1.11-arm64-v8a.apk
       final architecture = _extractArchitecture(name);
       if (architecture == null) continue;
 

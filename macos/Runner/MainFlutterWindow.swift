@@ -31,7 +31,7 @@ class MainFlutterWindow: NSWindow {
     // 注册 cookie 同步 channel，用于将 cookie 写入 HTTPCookieStorage.shared
     // WKWebView 的 sharedCookiesEnabled 在创建时从 HTTPCookieStorage.shared 读取 cookie
     let channel = FlutterMethodChannel(
-      name: "com.fluxdo/cookie_storage",
+      name: "com.forumflow/cookie_storage",
       binaryMessenger: flutterViewController.engine.binaryMessenger
     )
     channel.setMethodCallHandler { (call, result) in
@@ -56,7 +56,7 @@ class MainFlutterWindow: NSWindow {
     // 真实 Safari UA 形如 "... Version/{x.y} Safari/605.1.15"，
     // WKWebView 默认 UA 缺这两段，CF 会判为半截 UA。
     let systemInfoChannel = FlutterMethodChannel(
-      name: "com.fluxdo/system_info",
+      name: "com.forumflow/system_info",
       binaryMessenger: flutterViewController.engine.binaryMessenger
     )
     systemInfoChannel.setMethodCallHandler { (call, result) in
@@ -70,7 +70,7 @@ class MainFlutterWindow: NSWindow {
 
     // 注册代理 CA 证书 channel（原生层 SSL challenge 拦截）
     let proxyCertChannel = FlutterMethodChannel(
-      name: "com.fluxdo/proxy_cert",
+      name: "com.forumflow/proxy_cert",
       binaryMessenger: flutterViewController.engine.binaryMessenger
     )
     proxyCertChannel.setMethodCallHandler { (call, result) in
@@ -97,7 +97,7 @@ class MainFlutterWindow: NSWindow {
     // 因为 macOS 上 AppDelegate 那个时机 mainFlutterWindow 可能未就绪,
     // channel 会被静默跳过, Dart 端收到 MissingPluginException。
     let rawCookieChannel = FlutterMethodChannel(
-      name: "com.fluxdo/raw_cookie",
+      name: "com.forumflow/raw_cookie",
       binaryMessenger: flutterViewController.engine.binaryMessenger
     )
 
@@ -106,7 +106,7 @@ class MainFlutterWindow: NSWindow {
     // 通知 Dart 端 sweep。我们自己 setCookie/delete 时会临时禁用通知
     // (internalWriteCount > 0 时忽略 cookiesDidChange), 避免 sweep 循环。
     let cookieObserverChannel = FlutterMethodChannel(
-      name: "com.fluxdo/cookie_observer",
+      name: "com.forumflow/cookie_observer",
       binaryMessenger: flutterViewController.engine.binaryMessenger
     )
     CookieStoreObserverHandler.shared.attach(channel: cookieObserverChannel)
@@ -493,7 +493,7 @@ class MainFlutterWindow: NSWindow {
 // MARK: - Cookie Store Observer (v0.4.0 Phase B)
 //
 // 注册 WKHTTPCookieStoreObserver 监听 WV 网络层的 cookie 变化,
-// 通过 channel `com.fluxdo/cookie_observer` 通知 Dart 端执行 sweep。
+// 通过 channel `com.forumflow/cookie_observer` 通知 Dart 端执行 sweep。
 //
 // 防重入: 我们自己 setCookie / nukeAllVariants / deleteExactCookie 时,
 // internalWriteCount > 0, observer 看到事件就忽略, 避免:

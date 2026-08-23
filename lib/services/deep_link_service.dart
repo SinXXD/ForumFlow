@@ -107,8 +107,8 @@ class DeepLinkService {
       return;
     }
 
-    // 自定义 scheme (fluxdo://...)
-    if (uri.scheme == 'fluxdo') {
+    // 自定义 scheme (forumflow://...,兼容旧版 fluxdo://...)
+    if (uri.scheme == 'forumflow' || uri.scheme == 'fluxdo') {
       _handleCustomScheme(context, uri);
       return;
     }
@@ -260,7 +260,7 @@ class DeepLinkService {
   }
 
   static bool _canHandleUri(Uri uri) {
-    if (uri.scheme == 'fluxdo') return true;
+    if (uri.scheme == 'forumflow' || uri.scheme == 'fluxdo') return true;
     // 浏览器授权登录回调(仅 auth_redirect,不接管其他 discourse:// 链接)
     if (uri.scheme == 'discourse' && uri.host == 'auth_redirect') return true;
     if (uri.scheme != 'http' && uri.scheme != 'https') return false;
