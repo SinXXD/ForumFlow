@@ -25,26 +25,11 @@ ForumFlow 是论坛的第三方客户端，不代表上述论坛，也不属于 
 
 在保留原项目主体能力的基础上，本版本主要进行了以下工作：
 
-- 将应用重新命名为 **ForumFlow**，并更换应用图标、平台标识和包名；
 - 增加多论坛管理与无确认快速切换；
 - 为不同论坛隔离登录状态、会话凭证、Cookie、草稿、书签和本地缓存；
 - 支持游客模式浏览，并保留论坛级别的站点定制；
-- 调整 Android 发布流程，当前 nightly 只构建 `arm64-v8a`。
 
 原项目的作者、贡献者和许可证义务仍然受到尊重。遇到与原始实现相关的问题时，也请优先参考[上游仓库](https://github.com/Lingyan000/fluxdo)的历史和文档。
-
-## 品牌与平台标识
-
-| 项目 | ForumFlow 标识 |
-| --- | --- |
-| 应用名称 | `ForumFlow` |
-| Dart 应用包名 | `forumflow` |
-| Android namespace / applicationId | `app.forumflow` |
-| iOS / macOS bundle identifier | `app.forumflow` |
-| 新版自定义深链 | `forumflow://` |
-| 旧版深链兼容 | `fluxdo://` |
-
-新版图标使用深靛渐变背景、叠加对话气泡和流动节点，表达“多个社区之间连续切换”的产品定位。图标母版和各平台生成脚本位于 [`assets/logo_forumflow.svg`](assets/logo_forumflow.svg) 与 [`tools/generate_forumflow_icons.ps1`](tools/generate_forumflow_icons.ps1)。
 
 ## 主要功能
 
@@ -134,13 +119,6 @@ ForumFlow/
 ## 许可证与再发布
 
 本项目继续使用原仓库的 **GNU General Public License v3.0（GPL-3.0）**，完整文本见 [`LICENSE`](LICENSE)。本二开版本没有在 GPL-3.0 之外增加额外的使用限制：在遵守 GPL-3.0 的前提下，可以自由使用、研究、修改、复制、再发布本项目，也可以用于商业用途。
-
-再发布或发布修改版本时，请至少履行 GPL-3.0 要求：
-
-- 保留许可证文本和原作者/贡献者的版权声明；
-- 向接收者提供相应的源代码或有效的源代码获取方式；
-- 明确标注本版本相对于上游的修改；
-- 不把本项目改造成附加了额外限制的衍生发行版。
 
 本仓库中的第三方依赖、字体、图标和其他外部资源仍可能受各自许可证约束，应以其随附的许可证文件为准。ForumFlow、FluxDO、Linux.do 以及相关站点名称和标志的商标权归其各自权利人所有。
 
