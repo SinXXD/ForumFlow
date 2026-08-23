@@ -2,23 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:app_icons/app_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluxdo/widgets/common/error_view.dart';
-import 'package:fluxdo/widgets/common/progressive_top_blur.dart';
+import 'package:forumflow/widgets/common/error_view.dart';
+import 'package:forumflow/widgets/common/progressive_top_blur.dart';
 import 'package:m3e_ui/m3e_ui.dart';
-import 'package:fluxdo/widgets/markdown_editor/composer_shortcuts.dart';
-import 'package:fluxdo/widgets/markdown_editor/composer_switch_fade.dart';
-import 'package:fluxdo/widgets/markdown_editor/markdown_editor.dart';
-import 'package:fluxdo/widgets/markdown_editor/rich_composer/rich_composer_editor.dart';
-import 'package:fluxdo/models/category.dart';
-import 'package:fluxdo/models/topic.dart';
+import 'package:forumflow/widgets/markdown_editor/composer_shortcuts.dart';
+import 'package:forumflow/widgets/markdown_editor/composer_switch_fade.dart';
+import 'package:forumflow/widgets/markdown_editor/markdown_editor.dart';
+import 'package:forumflow/widgets/markdown_editor/rich_composer/rich_composer_editor.dart';
+import 'package:forumflow/models/category.dart';
+import 'package:forumflow/models/topic.dart';
 
 import 'package:dio/dio.dart';
-import 'package:fluxdo/providers/discourse_providers.dart';
-import 'package:fluxdo/providers/preferences_provider.dart';
-import 'package:fluxdo/services/app_error_handler.dart';
-import 'package:fluxdo/services/toast_service.dart';
-import 'package:fluxdo/widgets/markdown_editor/markdown_renderer.dart';
-import 'package:fluxdo/widgets/topic/topic_editor_helpers.dart';
+import 'package:forumflow/providers/discourse_providers.dart';
+import 'package:forumflow/providers/preferences_provider.dart';
+import 'package:forumflow/services/app_error_handler.dart';
+import 'package:forumflow/services/toast_service.dart';
+import 'package:forumflow/widgets/markdown_editor/markdown_renderer.dart';
+import 'package:forumflow/widgets/topic/topic_editor_helpers.dart';
 import '../l10n/s.dart';
 
 /// 编辑话题结果

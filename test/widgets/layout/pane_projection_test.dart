@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/providers/selected_topic_provider.dart';
-import 'package:fluxdo/widgets/layout/master_detail_layout.dart';
-import 'package:fluxdo/widgets/layout/pane_projection_back_scope.dart';
+import 'package:forumflow/providers/selected_topic_provider.dart';
+import 'package:forumflow/widgets/layout/master_detail_layout.dart';
+import 'package:forumflow/widgets/layout/pane_projection_back_scope.dart';
 
 /// 窄屏投影态(projectDetailWhenNarrow)的核心契约:
 /// - 窄屏栈非空 = detail 全宽投影,master 保留在树中(State 不丢);

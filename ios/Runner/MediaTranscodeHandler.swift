@@ -7,14 +7,14 @@ import FlutterMacOS
 
 /// 媒体转码通道(音视频压缩到站点 4MB 上限的 Apple 腿):
 /// AVAssetReader/Writer,H264(VideoToolbox 硬编)+ AAC,码率精确可控。
-/// 与 Dart 侧 MediaTranscoder(com.fluxdo/media_transcode)协议对应。
+/// 与 Dart 侧 MediaTranscoder(com.forumflow/media_transcode)协议对应。
 /// 单任务模型;progress 轮询;cancel 中断。
 ///
 /// 本文件 iOS / macOS 各放一份(内容相同,条件编译 import),改动需同步。
 class MediaTranscodeHandler: NSObject {
   static let shared = MediaTranscodeHandler()
 
-  private let workQueue = DispatchQueue(label: "com.fluxdo.media-transcode")
+  private let workQueue = DispatchQueue(label: "com.forumflow.media-transcode")
   private var currentReader: AVAssetReader?
   private var currentWriter: AVAssetWriter?
   private var progressValue: Double = 0
@@ -23,7 +23,7 @@ class MediaTranscodeHandler: NSObject {
 
   func register(messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
-      name: "com.fluxdo/media_transcode",
+      name: "com.forumflow/media_transcode",
       binaryMessenger: messenger
     )
     channel.setMethodCallHandler { [weak self] (call, result) in
@@ -273,7 +273,7 @@ class MediaTranscodeHandler: NSObject {
     for (input, output, drivesProgress) in pumps {
       group.enter()
       var finished = false
-      let pumpQueue = DispatchQueue(label: "com.fluxdo.transcode-pump")
+      let pumpQueue = DispatchQueue(label: "com.forumflow.transcode-pump")
       input.requestMediaDataWhenReady(on: pumpQueue) { [weak self] in
         guard let self = self, !finished else { return }
         while input.isReadyForMoreMediaData {

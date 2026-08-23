@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../../config/site_context.dart';
 import '../../constants.dart';
 import '../local_notification_service.dart';
 import '../network/cookie/cookie_jar_service.dart';
@@ -12,13 +13,16 @@ import '../network/discourse_dio.dart';
 import '../../models/notification.dart';
 
 /// iOS 后台任务标识符
-const String kNotificationPollTask = 'com.fluxdo.notificationPoll';
+const String kNotificationPollTask = 'com.forumflow.notificationPoll';
 
 /// SharedPreferences 键名
-const String _kUserId = 'bg_notification_user_id';
-const String _kLastMessageId = 'bg_notification_last_message_id';
-const String _kLongPollingBaseUrl = 'bg_long_polling_base_url';
-const String _kSharedSessionKey = 'bg_shared_session_key';
+String get _kUserId => 'bg_notification_user_id_${SiteContext.instance.host}';
+String get _kLastMessageId =>
+    'bg_notification_last_message_id_${SiteContext.instance.host}';
+String get _kLongPollingBaseUrl =>
+    'bg_long_polling_base_url_${SiteContext.instance.host}';
+String get _kSharedSessionKey =>
+    'bg_shared_session_key_${SiteContext.instance.host}';
 
 /// iOS 后台拉取回调（顶层函数，由 workmanager 在独立 Isolate 中调用）
 @pragma('vm:entry-point')
@@ -27,12 +31,15 @@ void callbackDispatcher() {
     try {
       debugPrint('[iOSBgFetch] 开始执行后台任务: $taskName');
 
-      // 1. 初始化 Cookie 相关服务
+      // 1. 先恢复当前论坛，再初始化依赖动态站点 key/baseUrl 的服务。
+      final prefs = await SharedPreferences.getInstance();
+      await SiteContext.instance.initialize(prefs);
+
+      // 2. 初始化 Cookie 相关服务
       await CookieJarService().initialize();
       await CsrfTokenService().init();
 
-      // 2. 从 SharedPreferences 读取 userId 和 lastMessageId
-      final prefs = await SharedPreferences.getInstance();
+      // 3. 从 SharedPreferences 读取当前论坛的 userId 和 lastMessageId
       final userId = prefs.getInt(_kUserId);
       if (userId == null) {
         debugPrint('[iOSBgFetch] 未找到 userId，跳过');
@@ -46,7 +53,7 @@ void callbackDispatcher() {
       final longPollingBaseUrl = prefs.getString(_kLongPollingBaseUrl);
       final sharedSessionKey = prefs.getString(_kSharedSessionKey);
 
-      // 3. 创建临时 Dio，短超时单次轮询
+      // 4. 创建临时 Dio，短超时单次轮询
       final dio = DiscourseDio.create(
         receiveTimeout: const Duration(seconds: 10),
         defaultHeaders: {
@@ -84,7 +91,7 @@ void callbackDispatcher() {
         return true;
       }
 
-      // 4. 解析消息
+      // 5. 解析消息
       final parsed = jsonDecode(response.data!);
       if (parsed is! List) return true;
 
@@ -141,7 +148,7 @@ void callbackDispatcher() {
         }
       }
 
-      // 5. 持久化 lastMessageId
+      // 6. 持久化当前论坛的 lastMessageId
       if (newLastMessageId > lastMessageId) {
         await prefs.setInt(_kLastMessageId, newLastMessageId);
         debugPrint('[iOSBgFetch] 更新 lastMessageId: $newLastMessageId');

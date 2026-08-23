@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/models/nested_topic.dart';
-import 'package:fluxdo/models/topic.dart';
-import 'package:fluxdo/utils/blocked_user_filter.dart';
+import 'package:forumflow/models/nested_topic.dart';
+import 'package:forumflow/models/topic.dart';
+import 'package:forumflow/utils/blocked_user_filter.dart';
 
 void main() {
   group('BlockedUserFilter', () {

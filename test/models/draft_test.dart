@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/models/draft.dart';
+import 'package:forumflow/models/draft.dart';
 
 void main() {
   group('Draft', () {

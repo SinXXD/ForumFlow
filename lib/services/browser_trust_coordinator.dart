@@ -6,9 +6,11 @@ import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import '../config/site_context.dart';
 import '../constants.dart';
 import '../utils/frame_jank_monitor.dart';
 import 'app_logger.dart';
+import 'auth_session.dart';
 import 'cf_challenge_logger.dart';
 import 'cf_challenge_service.dart';
 import 'cf_clearance_refresh_service.dart';
@@ -89,8 +91,10 @@ class BrowserTrustCoordinator {
   final PreloadedDataService _preload = PreloadedDataService();
 
   Future<void>? _activePreload;
+  BrowserTrustRunCancellation? _activePreloadCancellation;
   Future<bool>? _activeBrowserTrust;
   Future<bool>? _activeBrowserTrustGate;
+  int _trustGeneration = 0;
   Timer? _backgroundPauseTimer;
   String? _pendingClearanceRefreshReason;
 
@@ -116,6 +120,28 @@ class BrowserTrustCoordinator {
   BrowserTrustPreloadPath? _lastPreloadPath;
 
   BrowserTrustPreloadPath? get lastPreloadPath => _lastPreloadPath;
+
+  /// 切站时作废预加载编排状态。
+  ///
+  /// 旧的 native 请求会被 AuthSession 取消；WebView 预加载则通过协作式
+  /// cancellation 尽快退出。必须同时清掉 [_activePreload]，否则下一次
+  /// ensurePreloaded 会加入旧站 future，切换后不会真正拉新站数据。
+  void resetForSiteSwitch() {
+    _trustGeneration++;
+    _activePreloadCancellation?.cancel();
+    _activePreloadCancellation = null;
+    _activePreload = null;
+    // 站点切换后不能 join 旧站的浏览器信任同步；旧 future 的收尾回调会
+    // 因 identity 检查保留新站刚建立的 future。
+    _activeBrowserTrust = null;
+    _activeBrowserTrustGate = null;
+    _lastPreloadPath = null;
+    _lastClearanceRejectedAt = null;
+    _pendingClearanceRefreshReason = null;
+    _backgroundPauseTimer?.cancel();
+    _backgroundPauseTimer = null;
+    WebViewCookiePriming.instance.invalidate();
+  }
 
   void setNavigatorContext(BuildContext context) {
     _navigatorContext = context;
@@ -173,8 +199,22 @@ class BrowserTrustCoordinator {
       return active;
     }
 
+    final trustGeneration = _trustGeneration;
+    final expectedRevision = SiteContext.instance.revision;
+    final expectedBaseUrl = AppConstants.baseUrl;
+    final expectedAuthGeneration = AuthSession().generation;
+    bool isCurrent() {
+      return _trustGeneration == trustGeneration &&
+          SiteContext.instance.revision == expectedRevision &&
+          AppConstants.baseUrl == expectedBaseUrl &&
+          AuthSession().isValid(expectedAuthGeneration);
+    }
+
     late final Future<void> future;
-    future = _ensurePreloadedInternal(reason: reason).whenComplete(() {
+    future = _ensurePreloadedInternal(
+      reason: reason,
+      isCurrent: isCurrent,
+    ).whenComplete(() {
       if (identical(_activePreload, future)) {
         _activePreload = null;
       }
@@ -192,6 +232,17 @@ class BrowserTrustCoordinator {
       if (active != null) return active;
     }
 
+    final trustGeneration = _trustGeneration;
+    final expectedRevision = SiteContext.instance.revision;
+    final expectedBaseUrl = AppConstants.baseUrl;
+    final expectedAuthGeneration = AuthSession().generation;
+    bool isCurrent() {
+      return _trustGeneration == trustGeneration &&
+          SiteContext.instance.revision == expectedRevision &&
+          AppConstants.baseUrl == expectedBaseUrl &&
+          AuthSession().isValid(expectedAuthGeneration);
+    }
+
     final gateCompleter = Completer<bool>();
     late final Future<bool> gateFuture;
     gateFuture = gateCompleter.future.whenComplete(() {
@@ -206,9 +257,10 @@ class BrowserTrustCoordinator {
           reason: reason,
           requestGate: gateCompleter,
           forceSessionSync: force,
+          isCurrent: isCurrent,
         ).whenComplete(() {
           _completeRequestGate(gateCompleter, false);
-          if (_pendingClearanceRefreshReason != null) {
+          if (isCurrent() && _pendingClearanceRefreshReason != null) {
             _startClearanceRefreshIfLoggedIn(reason: 'browser_trust_settled');
           }
           if (identical(_activeBrowserTrust, future)) {
@@ -269,56 +321,67 @@ class BrowserTrustCoordinator {
     CfClearanceRefreshService().start();
   }
 
-  Future<void> _ensurePreloadedInternal({required String reason}) async {
-    final nativeTrusted = await _isNativePreloadTrusted();
-    if (nativeTrusted) {
-      _lastPreloadPath = BrowserTrustPreloadPath.native;
-      _log('preload path=native reason=$reason');
-      try {
-        await _preload.ensureLoaded();
-        _log('native preload success reason=$reason');
-        _startBrowserTrustAfterNativePreload(reason: reason);
+  Future<void> _ensurePreloadedInternal({
+    required String reason,
+    required bool Function() isCurrent,
+  }) async {
+    final cancellation = BrowserTrustRunCancellation();
+    _activePreloadCancellation = cancellation;
+    try {
+      final nativeTrusted = await _isNativePreloadTrusted();
+      if (!isCurrent()) return;
+      if (nativeTrusted) {
+        _lastPreloadPath = BrowserTrustPreloadPath.native;
+        _log('preload path=native reason=$reason');
+        try {
+          await _preload.ensureLoaded();
+          if (!isCurrent()) return;
+          _log('native preload success reason=$reason');
+          _startBrowserTrustAfterNativePreload(reason: reason);
+          return;
+        } catch (e) {
+          _log(
+            'trusted native preload failed, switching to startup WebView: $e',
+            level: 'warning',
+          );
+        }
+      }
+
+      _log('preload path=startup_webview reason=$reason');
+      final hydrateTask = _hydratePreloadThroughWebView(
+        reason: reason,
+        cancellation: cancellation,
+      );
+      final hydrateResult = await runBrowserTrustTaskWithSafeTimeout<bool>(
+        task: hydrateTask,
+        timeout: _webViewPreloadTimeout,
+        cancellation: cancellation,
+      );
+      if (!isCurrent()) return;
+      if (hydrateResult == null) {
+        _log('startup WebView preload timeout', level: 'warning');
+      }
+      if (hydrateResult == true) {
+        _lastPreloadPath = BrowserTrustPreloadPath.webView;
+        _log('startup WebView preload success reason=$reason');
+        _startClearanceRefreshIfLoggedIn();
         return;
-      } catch (e) {
-        _log(
-          'trusted native preload failed, switching to startup WebView: $e',
-          level: 'warning',
-        );
+      }
+
+      _lastPreloadPath = BrowserTrustPreloadPath.native;
+      _log(
+        'startup WebView preload unavailable, fallback native reason=$reason',
+        level: 'warning',
+      );
+      await _preload.ensureLoaded();
+      if (!isCurrent()) return;
+      _log('fallback native preload success reason=$reason');
+      _startBrowserTrustAfterNativePreload(reason: reason);
+    } finally {
+      if (identical(_activePreloadCancellation, cancellation)) {
+        _activePreloadCancellation = null;
       }
     }
-
-    _log('preload path=startup_webview reason=$reason');
-    var hydrated = false;
-    final cancellation = BrowserTrustRunCancellation();
-    final hydrateTask = _hydratePreloadThroughWebView(
-      reason: reason,
-      cancellation: cancellation,
-    );
-    final hydrateResult = await runBrowserTrustTaskWithSafeTimeout<bool>(
-      task: hydrateTask,
-      timeout: _webViewPreloadTimeout,
-      cancellation: cancellation,
-    );
-    if (hydrateResult == null) {
-      _log('startup WebView preload timeout', level: 'warning');
-    } else {
-      hydrated = hydrateResult;
-    }
-    if (hydrated) {
-      _lastPreloadPath = BrowserTrustPreloadPath.webView;
-      _log('startup WebView preload success reason=$reason');
-      _startClearanceRefreshIfLoggedIn();
-      return;
-    }
-
-    _lastPreloadPath = BrowserTrustPreloadPath.native;
-    _log(
-      'startup WebView preload unavailable, fallback native reason=$reason',
-      level: 'warning',
-    );
-    await _preload.ensureLoaded();
-    _log('fallback native preload success reason=$reason');
-    _startBrowserTrustAfterNativePreload(reason: reason);
   }
 
   void _startBrowserTrustAfterNativePreload({required String reason}) {
@@ -347,14 +410,27 @@ class BrowserTrustCoordinator {
     required String reason,
     Completer<bool>? requestGate,
     required bool forceSessionSync,
+    required bool Function() isCurrent,
   }) async {
     final stopwatch = Stopwatch()..start();
     _log('browser trust sync begin reason=$reason');
+    if (!isCurrent()) {
+      _completeRequestGate(requestGate, false);
+      return false;
+    }
     try {
       final gateStartedAt = stopwatch.elapsedMilliseconds;
       _log('browser trust request gate priming begin reason=$reason');
       await _primeWebViewCookies(reason: reason);
+      if (!isCurrent()) {
+        _completeRequestGate(requestGate, false);
+        return false;
+      }
       final requestTrusted = await _isRequestGateTrusted();
+      if (!isCurrent()) {
+        _completeRequestGate(requestGate, false);
+        return false;
+      }
       _completeRequestGate(requestGate, requestTrusted);
       _log(
         'browser trust request gate ready reason=$reason '
@@ -372,15 +448,19 @@ class BrowserTrustCoordinator {
       'browser trust session bootstrap begin reason=$reason '
       'force=$forceSessionSync',
     );
+    if (!isCurrent()) return false;
     var bootstrap = await WebViewSessionCookieRefreshService.instance
         .ensureSynced(reason: reason, force: forceSessionSync);
+    if (!isCurrent()) return false;
     // bootstrap 被 CF(403/429)挡下:作废本地假阳性信任,复用/发起 CF 验证拿到
     // 新 cf_clearance 后 force 重跑一次,避免与 Dio 侧的 CF 自愈各自为政。
     if (bootstrap.cfBlocked) {
       bootstrap = await _recoverBootstrapFromCfBlock(
         reason: reason,
         blocked: bootstrap,
+        isCurrent: isCurrent,
       );
+      if (!isCurrent()) return false;
     }
     final synced = bootstrap.ok;
     _log(
@@ -394,8 +474,9 @@ class BrowserTrustCoordinator {
       'browser trust sync end reason=$reason synced=$synced '
       'elapsedMs=${stopwatch.elapsedMilliseconds}',
     );
+    if (!isCurrent()) return false;
     _startClearanceRefreshIfLoggedIn();
-    return synced;
+    return isCurrent() && synced;
   }
 
   /// WebView session bootstrap 被 CF(403/429)挡下后的统一恢复:
@@ -404,7 +485,9 @@ class BrowserTrustCoordinator {
   Future<SessionBootstrapResult> _recoverBootstrapFromCfBlock({
     required String reason,
     required SessionBootstrapResult blocked,
+    required bool Function() isCurrent,
   }) async {
+    if (!isCurrent()) return blocked;
     final cycleStartAt = DateTime.now();
     _lastClearanceRejectedAt = cycleStartAt;
     _log(
@@ -434,6 +517,7 @@ class BrowserTrustCoordinator {
       gotClearance = ok == true;
     }
 
+    if (!isCurrent()) return blocked;
     if (!gotClearance) {
       _log(
         'CF clearance not obtained, give up bootstrap retry reason=$reason',
@@ -450,9 +534,11 @@ class BrowserTrustCoordinator {
     // 验证结果会早于 Windows WebView2 Controller 的真实析构完成。
     // 等 CF teardown gate（内部含 1.2 秒冷却）后才能创建 Session WebView。
     await cf.waitForManualTeardown();
+    if (!isCurrent()) return blocked;
     _log('CF clearance obtained, force re-run bootstrap reason=$reason');
     final retry = await WebViewSessionCookieRefreshService.instance
         .ensureSynced(reason: '$reason:cf_recover', force: true);
+    if (!isCurrent()) return blocked;
     _log(
       'bootstrap re-run after CF: ok=${retry.ok} cfBlocked=${retry.cfBlocked} '
       'reason=$reason',
@@ -497,9 +583,13 @@ class BrowserTrustCoordinator {
     gate.complete(ready);
   }
 
-  Future<void> _primeWebViewCookies({required String reason}) async {
+  Future<void> _primeWebViewCookies({
+    required String reason,
+    String? baseUrl,
+  }) async {
+    final targetUrl = baseUrl ?? AppConstants.baseUrl;
     try {
-      await WebViewCookiePriming.instance.prime(AppConstants.baseUrl);
+      await WebViewCookiePriming.instance.prime(targetUrl);
     } catch (e) {
       _log(
         'WebView cookie priming failed: reason=$reason $e',
@@ -513,8 +603,21 @@ class BrowserTrustCoordinator {
     required String reason,
     required BrowserTrustRunCancellation cancellation,
   }) async {
-    await _primeWebViewCookies(reason: '$reason:webview_preload');
-    if (cancellation.isCancelled) return false;
+    final expectedBaseUrl = AppConstants.baseUrl;
+    final expectedRevision = SiteContext.instance.revision;
+    final expectedAuthGeneration = AuthSession().generation;
+    bool isCurrent() {
+      return !cancellation.isCancelled &&
+          AppConstants.baseUrl == expectedBaseUrl &&
+          SiteContext.instance.revision == expectedRevision &&
+          AuthSession().isValid(expectedAuthGeneration);
+    }
+
+    await _primeWebViewCookies(
+      reason: '$reason:webview_preload',
+      baseUrl: expectedBaseUrl,
+    );
+    if (!isCurrent()) return false;
     _log('startup WebView create reason=$reason');
 
     var loadCompleter = Completer<void>();
@@ -551,15 +654,17 @@ class BrowserTrustCoordinator {
       FrameJankMonitor.logEvent('WEBVIEW', 'BrowserTrust run(): $reason');
       platformViewStarted = true;
       await webView.run();
-      if (cancellation.isCancelled) return false;
+      if (!isCurrent()) return false;
       final c = webView.webViewController;
       if (c == null) return false;
 
       if (io.Platform.isWindows) {
         await c.loadUrl(
-          urlRequest: URLRequest(url: WebUri(_windowsBootstrapUrl)),
+          urlRequest: URLRequest(
+            url: WebUri('$expectedBaseUrl/robots.txt'),
+          ),
         );
-        if (cancellation.isCancelled) return false;
+        if (!isCurrent()) return false;
         try {
           await Future.any<void>([
             loadCompleter.future.timeout(_originLoadTimeout),
@@ -568,43 +673,47 @@ class BrowserTrustCoordinator {
         } on TimeoutException {
           debugPrint('[BrowserTrust] Windows origin bootstrap timeout');
         }
-        if (cancellation.isCancelled) return false;
+        if (!isCurrent()) return false;
         await _writeStartupShell(c);
-        if (cancellation.isCancelled) return false;
+        if (!isCurrent()) return false;
       } else {
         await c.loadData(
           data: _startupShellHtml,
-          baseUrl: WebUri(AppConstants.baseUrl),
+          baseUrl: WebUri(expectedBaseUrl),
           mimeType: 'text/html',
           encoding: 'utf-8',
         );
-        if (cancellation.isCancelled) return false;
+        if (!isCurrent()) return false;
       }
 
       loadCompleter = Completer<void>();
-      await _navigateToHome(c);
-      if (cancellation.isCancelled) return false;
-      await _waitForLoad(loadCompleter, cancellation: cancellation);
-      if (cancellation.isCancelled) return false;
+      await _navigateToHome(c, baseUrl: expectedBaseUrl);
+      if (!isCurrent()) return false;
+      await _waitForLoad(
+        loadCompleter,
+        cancellation: cancellation,
+        isCurrent: isCurrent,
+      );
+      if (!isCurrent()) return false;
       _log('startup WebView home loaded, syncing cookies reason=$reason');
-      await _syncCookiesFromController(c);
-      if (cancellation.isCancelled) return false;
+      await _syncCookiesFromController(c, baseUrl: expectedBaseUrl);
+      if (!isCurrent()) return false;
 
       final html = await _readPreloadedSnapshot(c, cancellation: cancellation);
-      if (cancellation.isCancelled) return false;
+      if (!isCurrent()) return false;
       final hydrated =
           html != null &&
           html.isNotEmpty &&
           await _preload.hydrateFromHtml(html);
-      if (cancellation.isCancelled) return false;
+      if (!isCurrent()) return false;
       _log(
         'startup WebView snapshot html=${html != null && html.isNotEmpty} hydrated=$hydrated reason=$reason',
         level: hydrated ? 'info' : 'warning',
       );
 
       final tToken = await _jar.getTToken();
+      if (!isCurrent()) return false;
       if (tToken != null && tToken.isNotEmpty) {
-        if (cancellation.isCancelled) return false;
         _log('startup WebView session bootstrap begin reason=$reason');
         final bootstrapResult = await WebViewSessionCookieRefreshService
             .instance
@@ -612,24 +721,28 @@ class BrowserTrustCoordinator {
               c,
               reason: '$reason:startup_webview',
               pluginCandidates: _preload.pluginCandidatesSync,
-              isCancelled: () => cancellation.isCancelled,
+              baseUrl: expectedBaseUrl,
+              isCancelled: () => !isCurrent(),
               cancellationSignal: cancellation.whenCancelled,
             );
-        if (cancellation.isCancelled) return false;
+        if (!isCurrent()) return false;
         final bootstrapped = bootstrapResult.ok;
-        await _syncCookiesFromController(c);
-        if (cancellation.isCancelled) return false;
+        await _syncCookiesFromController(c, baseUrl: expectedBaseUrl);
+        if (!isCurrent()) return false;
         final runtimeDetails = await _jar.getCookieDiagnosticsForRequest(
-          Uri.parse(AppConstants.baseUrl),
+          Uri.parse(expectedBaseUrl),
           names: const {'_rt'},
         );
+        if (!isCurrent()) return false;
         final hasRuntimeCookie = runtimeDetails.any(
           (cookie) => (cookie['valueLength'] as int? ?? 0) > 0,
         );
-        if (bootstrapped && hasRuntimeCookie) {
+        if (bootstrapped && hasRuntimeCookie && isCurrent()) {
+          final syncedTToken = await _jar.getTToken();
+          if (!isCurrent()) return false;
           WebViewSessionCookieRefreshService.instance.markSynced(
             reason: '$reason:startup_webview',
-            tToken: await _jar.getTToken(),
+            tToken: syncedTToken,
             hasRuntimeCookie: hasRuntimeCookie,
           );
         }
@@ -638,7 +751,7 @@ class BrowserTrustCoordinator {
         _log('startup WebView session bootstrap skipped: no _t');
       }
 
-      return hydrated;
+      return isCurrent() && hydrated;
     } catch (e) {
       _log('startup WebView preload failed: $e', level: 'warning');
       return false;
@@ -655,10 +768,13 @@ class BrowserTrustCoordinator {
     }
   }
 
-  Future<void> _navigateToHome(InAppWebViewController controller) async {
+  Future<void> _navigateToHome(
+    InAppWebViewController controller, {
+    required String baseUrl,
+  }) async {
     await controller.loadUrl(
       urlRequest: URLRequest(
-        url: WebUri(AppConstants.baseUrl),
+        url: WebUri(baseUrl),
         headers: const {
           'Accept':
               'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -670,6 +786,7 @@ class BrowserTrustCoordinator {
   Future<void> _waitForLoad(
     Completer<void> loadCompleter, {
     required BrowserTrustRunCancellation cancellation,
+    required bool Function() isCurrent,
   }) async {
     try {
       await Future.any<void>([
@@ -679,6 +796,7 @@ class BrowserTrustCoordinator {
     } on TimeoutException {
       _log('startup WebView load timeout, continue', level: 'warning');
     }
+    if (!isCurrent()) return;
   }
 
   Future<String?> _readPreloadedSnapshot(
@@ -706,10 +824,11 @@ class BrowserTrustCoordinator {
   }
 
   Future<void> _syncCookiesFromController(
-    InAppWebViewController controller,
-  ) async {
+    InAppWebViewController controller, {
+    required String baseUrl,
+  }) async {
     await BoundarySyncService.instance.syncFromWebView(
-      currentUrl: AppConstants.baseUrl,
+      currentUrl: baseUrl,
       controller: controller,
       cookieNames: null,
       allowLowConfidenceSessionCookies: true,

@@ -28,6 +28,7 @@ import '../../models/chat/chat_channel.dart';
 import '../../models/chat/chat_message.dart';
 
 import '../../constants.dart';
+import '../../config/site_context.dart';
 import '../../providers/message_bus_providers.dart';
 import '../auth_session.dart';
 import '../auth_issue_notice_service.dart';
@@ -144,8 +145,9 @@ class DiscourseService extends _DiscourseServiceBase
         _ReviewablesMixin,
         _AssignMixin,
         _ChatMixin {
-  static const String baseUrl = AppConstants.baseUrl;
-  static const String _usernameKey = 'linux_do_username';
+  static String get baseUrl => AppConstants.baseUrl;
+  /// 多论坛支持：用户名存储 key 按站点隔离。
+  static String get _usernameKey => 'username_${SiteContext.instance.host}';
   static const _summaryCacheDuration = Duration(minutes: 5);
 
   @override
@@ -255,7 +257,37 @@ class DiscourseService extends _DiscourseServiceBase
   /// 加载存储的凭证
   @override
   Future<void> _loadStoredCredentials() async {
+    final usernameKey = _usernameKey;
     _tToken = await _cookieJar.getTToken();
-    _username = await _storage.read(key: _usernameKey);
+    _username = await _storage.read(key: usernameKey);
+  }
+
+  /// 论坛切换时重置当前站点登录态（切换流程调用）。
+  ///
+  /// 职责：清空上一站点的内存登录态与用户缓存，重置 CSRF，
+  /// 然后按新站点重新加载存储的凭证（cookie jar 按 domain 天然隔离，
+  /// 这里读到的即是新站点的会话）。
+  Future<void> resetForSiteSwitch() async {
+    _tToken = null;
+    _username = null;
+    _credentialsLoaded = false;
+    _isLoggingOut = false;
+    _cachedUserSummary = null;
+    _cachedUserSummaryUsername = null;
+    _userSummaryCacheTime = null;
+    _activeUserRequests.clear();
+    _activeUserSummaryRequests.clear();
+    _urlCache.clear();
+    _clearPreviousTTokenFallback();
+    _resetStrikes();
+    UserApiKeyService().resetForSiteSwitch();
+    WebViewAdapterSettingsService.instance.resetSessionFallback();
+    CfChallengeService().resetSessionCompatibilityDecision();
+    CfClearanceRegistry.instance.reset();
+    currentUserNotifier.value = null;
+    await _cookieSync.reset();
+    await _loadStoredCredentials();
+    debugPrint('[DiscourseService] 站点切换后登录态: '
+        'isAuthenticated=$isAuthenticated');
   }
 }

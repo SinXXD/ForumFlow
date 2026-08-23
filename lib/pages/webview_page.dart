@@ -275,7 +275,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
                               if (io.Platform.isAndroid) {
                                 WidgetsBinding.instance
                                     .addPostFrameCallback((_) {
-                                  const MethodChannel('com.fluxdo/webauthn')
+                                  const MethodChannel('com.forumflow/webauthn')
                                       .invokeMethod('enableWebAuthentication');
                                 });
                               }
@@ -413,7 +413,7 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
 
     // 应用自有 scheme 直接交给深链服务，避免授权回调被当成外部应用
     // 链接弹出确认框，或在 WebView 内导航失败。
-    if (scheme == 'fluxdo' || scheme == 'discourse') {
+    if (scheme == 'forumflow' || scheme == 'fluxdo' || scheme == 'discourse') {
       DeepLinkService.instance.handleUri(url);
       return NavigationActionPolicy.CANCEL;
     }

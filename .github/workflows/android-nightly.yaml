@@ -1,0 +1,223 @@
+name: Android Nightly
+
+on:
+  push:
+    tags:
+      - 'android-nightly-*'
+  workflow_dispatch:
+
+concurrency:
+  group: android-nightly-arm64
+  cancel-in-progress: true
+
+env:
+  ANDROID_NDK_VERSION: '27.3.13750724'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64-v8a
+            rust-target: aarch64-linux-android
+            flutter-target: android-arm64
+
+    steps:
+      - name: Free disk space
+        run: |
+          echo "Disk space before cleanup"
+          df -h /
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /usr/local/lib/android/sdk/ndk \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/share/swift \
+            /usr/local/share/powershell \
+            /usr/local/share/chromium
+          sudo docker image prune --all --force > /dev/null 2>&1 || true
+          sudo apt-get clean || true
+          echo "Disk space after cleanup"
+          df -h /
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          cache: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/doh_proxy
+          key: android-${{ matrix.arch }}
+
+      - name: Setup Android build environment
+        run: |
+          rustup target add ${{ matrix.rust-target }}
+          cargo install cargo-ndk
+          sudo apt-get update
+          sudo apt-get install -y cmake
+
+      - name: Setup Android NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'ndk;${{ env.ANDROID_NDK_VERSION }}'
+
+      - name: Configure Android NDK path
+        run: |
+          ndk_path="${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}"
+          test -d "${ndk_path}"
+          echo "ANDROID_NDK_HOME=${ndk_path}" >> "${GITHUB_ENV}"
+          echo "ANDROID_NDK_ROOT=${ndk_path}" >> "${GITHUB_ENV}"
+
+      - name: Setup Android Signing
+        id: android_config
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          echo "${{ secrets.ANDROID_KEY_PROPERTIES }}" > android/key.properties
+
+          config_source=fallback
+          if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
+            decoded="$(printf '%s' "$GOOGLE_SERVICES_JSON" | base64 --decode 2>/dev/null || true)"
+            if printf '%s' "$decoded" | jq -e '
+              type == "object" and
+              (.project_info | type == "object") and
+              (.client | type == "array" and length > 0) and
+              any(.client[]; (.client_info.android_client_info.package_name // "") == "app.forumflow")
+            ' >/dev/null 2>&1; then
+              printf '%s\n' "$decoded" > android/app/google-services.json
+              config_source=secret
+            elif printf '%s' "$GOOGLE_SERVICES_JSON" | jq -e '
+              type == "object" and
+              (.project_info | type == "object") and
+              (.client | type == "array" and length > 0) and
+              any(.client[]; (.client_info.android_client_info.package_name // "") == "app.forumflow")
+            ' >/dev/null 2>&1; then
+              printf '%s\n' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+              config_source=secret
+            else
+              echo "::warning::GOOGLE_SERVICES_JSON is invalid; using the checked-in fallback config"
+            fi
+          else
+            echo "::notice::GOOGLE_SERVICES_JSON is not configured; using the checked-in fallback config"
+          fi
+
+          jq -e '
+            type == "object" and
+            (.project_info | type == "object") and
+            (.client | type == "array" and length > 0) and
+            any(.client[]; (.client_info.android_client_info.package_name // "") == "app.forumflow")
+          ' android/app/google-services.json >/dev/null
+
+          gcp_symbol_upload=false
+          if [ "$config_source" = secret ] &&
+             [ -n "${GCP_WIF_PROVIDER:-}" ] &&
+             [ -n "${GCP_SA_EMAIL:-}" ]; then
+            gcp_symbol_upload=true
+          fi
+          echo "gcp_symbol_upload=$gcp_symbol_upload" >> "$GITHUB_OUTPUT"
+
+      - name: Build Android
+        run: |
+          dart tool/flutterw.dart build apk \
+            --release \
+            --target-platform ${{ matrix.flutter-target }} \
+            --dart-define=cronetHttpNoPlay=true \
+            --split-debug-info=build/symbols
+          unzip -l build/app/outputs/flutter-apk/app-release.apk | grep "lib/${{ matrix.arch }}/libdoh_proxy.so"
+          cmp -s core/doh_proxy/certs/ca.der android/app/src/main/res/raw/proxy_ca.der
+          cmp -s core/doh_proxy/certs/ca.crt assets/certs/proxy_ca.pem
+          mkdir -p dist
+          mv build/app/outputs/flutter-apk/app-release.apk dist/forumflow-${{ matrix.arch }}.apk
+
+      - name: Authenticate to Google Cloud
+        if: steps.android_config.outputs.gcp_symbol_upload == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Upload Dart symbols to Crashlytics
+        if: steps.android_config.outputs.gcp_symbol_upload == 'true'
+        run: |
+          firebase_app_id="$(jq -r '
+            .client[]
+            | select((.client_info.android_client_info.package_name // "") == "app.forumflow")
+            | .client_info.mobilesdk_app_id // empty
+          ' android/app/google-services.json)"
+          test -n "$firebase_app_id"
+          npx -y firebase-tools@latest crashlytics:symbols:upload \
+            --app="$firebase_app_id" \
+            build/symbols
+
+      - name: Archive Dart symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: forumflow-dart-symbols-${{ matrix.arch }}
+          path: build/symbols
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: forumflow-android-apk-${{ matrix.arch }}
+          path: dist/forumflow-${{ matrix.arch }}.apk
+          retention-days: 90
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/android-nightly-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: forumflow-android-apk-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish Android nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ForumFlow Android Nightly ${{ github.ref_name }}
+          body: |
+            Android-only nightly build for ForumFlow.
+
+            Included ABI: arm64-v8a.
+          prerelease: true
+          make_latest: false
+          files: dist/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

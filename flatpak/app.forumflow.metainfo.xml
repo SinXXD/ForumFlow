@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>app.forumflow</id>
+  <name>ForumFlow</name>
+  <summary>Multi-forum Discourse client built with Flutter</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <launchable type="desktop-id">app.forumflow.desktop</launchable>
+  <description>
+    <p>ForumFlow is a Flutter-based multi-forum Discourse client packaged for Flatpak distribution.</p>
+  </description>
+  <url type="homepage">https://github.com/SinXXD/ForumFlow</url>
+  <url type="bugtracker">https://github.com/SinXXD/ForumFlow/issues</url>
+  <content_rating type="oars-1.1"/>
+  <developer id="app.forumflow">
+    <name>ForumFlow contributors</name>
+  </developer>
+  <provides>
+    <binary>fluxdo</binary>
+  </provides>
+</component>

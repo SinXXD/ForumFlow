@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/services/window_state_service.dart';
+import 'package:forumflow/services/window_state_service.dart';
 
 void main() {
   group('WindowStateService.isBoundsRestorable', () {

@@ -96,6 +96,7 @@ class WebViewSessionCookieRefreshService {
   DateTime? _lastAttemptAt;
   DateTime? _lastSuccessAt;
   String? _lastSuccessToken;
+  int _sessionStateGeneration = 0;
 
   /// 连续失败次数(成功清零)。每次 bootstrap = 一整个 headless WebView
   /// 生命周期 + FingerprintJS 全套采集,失败按 45s 固定冷却重试曾造成
@@ -151,6 +152,8 @@ class WebViewSessionCookieRefreshService {
   /// 登出复位:换账号 = 新浏览器会话,下一个登录会话需要重新 bootstrap。
   /// 同时清掉失败退避与 fresh 标记,新会话从干净状态开始。
   void resetSessionState({String reason = 'logout'}) {
+    _sessionStateGeneration++;
+    _activeRefresh = null;
     _lastSuccessAt = null;
     _lastSuccessToken = null;
     _lastAttemptAt = null;
@@ -169,6 +172,8 @@ class WebViewSessionCookieRefreshService {
     bool force = false,
   }) async {
     final startedAt = DateTime.now();
+    final stateGeneration = _sessionStateGeneration;
+    final siteBaseUrl = AppConstants.baseUrl;
     _logEnsureEvent(
       event: 'webview_session_sync_started',
       reason: reason,
@@ -180,6 +185,9 @@ class WebViewSessionCookieRefreshService {
     }
 
     final tToken = await _jar.getTToken();
+    if (!_isCurrentSessionState(siteBaseUrl, stateGeneration)) {
+      return const SessionBootstrapResult.failure(phase: 'stale_site');
+    }
     if (tToken == null || tToken.isEmpty) {
       _logEnsureEvent(
         event: 'webview_session_sync_skipped',
@@ -267,8 +275,17 @@ class WebViewSessionCookieRefreshService {
 
     _lastAttemptAt = now;
     late final Future<SessionBootstrapResult> future;
-    future = _refreshBrowserSession(reason: reason)
+    future = _refreshBrowserSession(
+          reason: reason,
+          expectedBaseUrl: siteBaseUrl,
+          expectedStateGeneration: stateGeneration,
+        )
         .then((result) {
+          // resetSessionState() 会让旧 WebView 任务自然收尾；它的结果
+          // 不能污染新站点/新登录会话的失败退避计数。
+          if (!_isCurrentSessionState(siteBaseUrl, stateGeneration)) {
+            return const SessionBootstrapResult.failure(phase: 'stale_site');
+          }
           // 失败退避计数:这里只会看到真正执行过的尝试(no_t / TTL /
           // cooldown / join 都在上面早退,不进本回调)。
           if (result.ok) {
@@ -310,12 +327,14 @@ class WebViewSessionCookieRefreshService {
 
   Future<SessionBootstrapResult> _refreshBrowserSession({
     required String reason,
+    required String expectedBaseUrl,
+    required int expectedStateGeneration,
   }) async {
     debugPrint('[WebViewSessionSync] 开始运行轻量会话 bootstrap: reason=$reason');
 
     try {
       WebViewCookiePriming.instance.invalidate();
-      await WebViewCookiePriming.instance.prime(AppConstants.baseUrl);
+      await WebViewCookiePriming.instance.prime(expectedBaseUrl);
     } catch (e) {
       debugPrint('[WebViewSessionSync] WebView cookie priming 失败，继续尝试: $e');
     }
@@ -329,7 +348,7 @@ class WebViewSessionCookieRefreshService {
       if (c == null) return;
 
       await BoundarySyncService.instance.syncFromWebView(
-        currentUrl: AppConstants.baseUrl,
+        currentUrl: expectedBaseUrl,
         controller: c,
         cookieNames: null,
         allowLowConfidenceSessionCookies: true,
@@ -363,9 +382,21 @@ class WebViewSessionCookieRefreshService {
     );
 
     try {
+      if (!_isCurrentSessionState(
+        expectedBaseUrl,
+        expectedStateGeneration,
+      )) {
+        return const SessionBootstrapResult.failure(phase: 'stale_site');
+      }
       // WebView 创建/销毁占用平台主线程,与掉帧时间轴对齐归因
       FrameJankMonitor.logEvent('WEBVIEW', 'SessionSync run(): $reason');
       await webView.run();
+      if (!_isCurrentSessionState(
+        expectedBaseUrl,
+        expectedStateGeneration,
+      )) {
+        return const SessionBootstrapResult.failure(phase: 'stale_site');
+      }
       final c = webView.webViewController;
       if (c == null) {
         debugPrint('[WebViewSessionSync] Headless WebView controller 为空');
@@ -374,12 +405,14 @@ class WebViewSessionCookieRefreshService {
 
       if (io.Platform.isWindows) {
         await c.loadUrl(
-          urlRequest: URLRequest(url: WebUri(_windowsBootstrapUrl)),
+          urlRequest: URLRequest(
+            url: WebUri('$expectedBaseUrl/robots.txt'),
+          ),
         );
       } else {
         await c.loadData(
           data: _bootstrapHtml,
-          baseUrl: WebUri(AppConstants.baseUrl),
+          baseUrl: WebUri(expectedBaseUrl),
           mimeType: 'text/html',
           encoding: 'utf-8',
         );
@@ -399,10 +432,15 @@ class WebViewSessionCookieRefreshService {
         c,
         reason: reason,
         pluginCandidates: PreloadedDataService().pluginCandidatesSync,
+        baseUrl: expectedBaseUrl,
       );
       if (!bootstrap.ok) {
         await syncCookies();
-        await logCookieSummary(reason: reason, bootstrapOk: false);
+        await logCookieSummary(
+          reason: reason,
+          bootstrapOk: false,
+          baseUrl: expectedBaseUrl,
+        );
         debugPrint('[WebViewSessionSync] 站点会话 bootstrap 未完成');
         return SessionBootstrapResult.failure(
           cfBlocked: bootstrap.cfBlocked,
@@ -412,7 +450,17 @@ class WebViewSessionCookieRefreshService {
       }
 
       await syncCookies();
-      await logCookieSummary(reason: reason, bootstrapOk: true);
+      await logCookieSummary(
+        reason: reason,
+        bootstrapOk: true,
+        baseUrl: expectedBaseUrl,
+      );
+      if (!_isCurrentSessionState(
+        expectedBaseUrl,
+        expectedStateGeneration,
+      )) {
+        return const SessionBootstrapResult.failure(phase: 'stale_site');
+      }
       final tToken = await _jar.getTToken();
       if (tToken != null && tToken.isNotEmpty) {
         _lastSuccessAt = DateTime.now();
@@ -434,6 +482,11 @@ class WebViewSessionCookieRefreshService {
       }
       FrameJankMonitor.logEvent('WEBVIEW', 'SessionSync dispose');
     }
+  }
+
+  bool _isCurrentSessionState(String expectedBaseUrl, int expectedGeneration) {
+    return _sessionStateGeneration == expectedGeneration &&
+        AppConstants.baseUrl == expectedBaseUrl;
   }
 
   void _logEnsureEvent({
@@ -460,12 +513,13 @@ class WebViewSessionCookieRefreshService {
     bool? bootstrapOk,
     String? endpoint,
     int? status,
+    String? baseUrl,
   }) async {
     try {
       if (!_jar.isInitialized) {
         await _jar.initialize();
       }
-      final uri = Uri.parse(AppConstants.baseUrl);
+      final uri = Uri.parse(baseUrl ?? AppConstants.baseUrl);
       final details = await _jar.getCookieDiagnosticsForRequest(uri);
       final names = details
           .map((cookie) => cookie['name']?.toString())
@@ -508,6 +562,7 @@ class WebViewSessionCookieRefreshService {
     Duration timeout = _bootstrapTimeout,
     bool Function()? isCancelled,
     Future<void>? cancellationSignal,
+    String? baseUrl,
   }) async {
     if (isCancelled?.call() == true) {
       return const SessionBootstrapResult.failure(phase: 'cancelled');
@@ -560,7 +615,10 @@ class WebViewSessionCookieRefreshService {
       if (isCancelled?.call() == true) {
         return const SessionBootstrapResult.failure(phase: 'cancelled');
       }
-      final script = _bootstrapScript(handlerName);
+      final script = _bootstrapScript(
+        handlerName,
+        baseUrl: baseUrl ?? AppConstants.baseUrl,
+      );
       await controller.evaluateJavascript(source: script);
       if (isCancelled?.call() == true) {
         return const SessionBootstrapResult.failure(phase: 'cancelled');
@@ -663,19 +721,20 @@ document.close();
     );
   }
 
-  String get _windowsBootstrapUrl => '${AppConstants.baseUrl}/robots.txt';
-
   String get _bootstrapHtml =>
       '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
       '<body></body></html>';
 
-  String _bootstrapScript(String handlerName) {
+  String _bootstrapScript(
+    String handlerName, {
+    required String baseUrl,
+  }) {
     final handler = jsonEncode(handlerName);
-    final baseUrl = jsonEncode(AppConstants.baseUrl);
+    final encodedBaseUrl = jsonEncode(baseUrl);
     return '''
 (async function() {
   const handlerName = $handler;
-  const appBaseUrl = $baseUrl;
+  const appBaseUrl = $encodedBaseUrl;
   function done(payload) {
     try {
       window.flutter_inappwebview.callHandler(handlerName, JSON.stringify(payload || {}));

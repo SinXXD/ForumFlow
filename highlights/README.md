@@ -12,7 +12,8 @@
 对应 tag 的亮点文件**不存在时自动回退**为现状的全量 commit 明细,不会挡发版;
 beta / rc 版本不读亮点文件(增量小,明细本身可读)。
 
-组装逻辑见 `scripts/ci/compose_release_notes.py`,CI 接线见 `.github/workflows/build.yaml` 的 upload job。
+组装逻辑见 `scripts/ci/compose_release_notes.py`。当前仓库只保留 Android nightly，
+版本亮点组装脚本作为本地/后续恢复完整发布流程时的工具保留。
 
 ## 起草
 

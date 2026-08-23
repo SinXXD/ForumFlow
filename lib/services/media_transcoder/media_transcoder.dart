@@ -123,7 +123,7 @@ class _ChannelTranscoder extends MediaTranscoder {
   _ChannelTranscoder._();
   static final instance = _ChannelTranscoder._();
 
-  static const _ch = MethodChannel('com.fluxdo/media_transcode');
+  static const _ch = MethodChannel('com.forumflow/media_transcode');
 
   @override
   Future<MediaProbeInfo?> probe(String path) async {

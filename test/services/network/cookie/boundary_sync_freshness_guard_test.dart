@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/services/network/cookie/boundary_sync_service.dart';
+import 'package:forumflow/services/network/cookie/boundary_sync_service.dart';
 
 /// 「防旧盖新」守卫的判定表契约。
 ///

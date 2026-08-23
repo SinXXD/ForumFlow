@@ -748,6 +748,20 @@ class MessageBusService {
     _subscriptions.clear();
   }
 
+  /// 切换论坛时清除旧站 MessageBus 配置。
+  ///
+  /// 仅 stopAll 还会保留旧站的独立长轮询域名 / shared-session key；
+  /// 在 provider 延迟重建前若有新订阅，可能短暂把请求发到旧论坛。
+  void resetForSiteSwitch() {
+    stopAll();
+    _baseUrl = null;
+    _sharedSessionKey = null;
+    _failureCount = 0;
+    _totalPollCalls = 0;
+    _chunkedBackoffRemaining = 0;
+    _dio = _createPollingDio();
+  }
+
   /// 释放资源
   void dispose() {
     _stopPolling();

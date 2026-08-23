@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import '../../../config/site_context.dart';
 import '../../../constants.dart';
 import '../../../utils/frame_jank_monitor.dart';
 import '../../auth_session.dart';
@@ -26,6 +27,23 @@ import 'adapter_log_metadata.dart';
 /// 全平台支持：Android (Chrome WebView)、iOS/macOS (WKWebView)、
 /// Windows (WebView2)、Linux (WebKitGTK)。
 class WebViewHttpAdapter implements HttpClientAdapter {
+  WebViewHttpAdapter() {
+    _instances.add(this);
+  }
+
+  static final Set<WebViewHttpAdapter> _instances = <WebViewHttpAdapter>{};
+
+  /// 站点切换后让已有 WebView 连接在空闲时销毁。
+  ///
+  /// WebView 的 JS fetch 运行在初始化时的 origin；只改 Dio 的 baseUrl
+  /// 不足以把这个 origin 从旧论坛迁到新论坛。这里不强杀在途请求，旧请求
+  /// 收尾后由 [fetch] 的站点检查触发下一次初始化。
+  static void resetAllForSiteSwitch() {
+    for (final adapter in List<WebViewHttpAdapter>.of(_instances)) {
+      adapter.resetForSiteSwitch();
+    }
+  }
+
   static const Set<String> _forbiddenBrowserHeaders = {
     'accept-charset',
     'accept-encoding',
@@ -70,7 +88,10 @@ class WebViewHttpAdapter implements HttpClientAdapter {
   HeadlessInAppWebView? _headlessWebView;
   InAppWebViewController? _controller;
   bool _isInitialized = false;
+  String? _initializedBaseUrl;
+  int? _initializedSiteRevision;
   Completer<void>? _initCompleter;
+  Completer<void>? _idleCompleter;
   Future<void>? _activeCriticalCookieSync;
   DateTime? _lastCriticalCookieSyncAt;
 
@@ -88,6 +109,8 @@ class WebViewHttpAdapter implements HttpClientAdapter {
     }
 
     final initCompleter = Completer<void>();
+    final initializationBaseUrl = AppConstants.baseUrl;
+    final initializationSiteRevision = SiteContext.instance.revision;
     _initCompleter = initCompleter;
     var pageLoadCompleter = Completer<void>();
     final initWatch = Stopwatch()..start();
@@ -153,12 +176,14 @@ class WebViewHttpAdapter implements HttpClientAdapter {
       pageLoadCompleter = Completer<void>();
       if (Platform.isWindows) {
         await controller.loadUrl(
-          urlRequest: URLRequest(url: WebUri(_windowsBootstrapUrl)),
+          urlRequest: URLRequest(
+            url: WebUri('$initializationBaseUrl/robots.txt'),
+          ),
         );
       } else {
         await controller.loadData(
           data: _bootstrapHtml,
-          baseUrl: WebUri(AppConstants.baseUrl),
+          baseUrl: WebUri(initializationBaseUrl),
           mimeType: 'text/html',
           encoding: 'utf-8',
         );
@@ -176,6 +201,8 @@ class WebViewHttpAdapter implements HttpClientAdapter {
       }
 
       _isInitialized = true;
+      _initializedBaseUrl = initializationBaseUrl;
+      _initializedSiteRevision = initializationSiteRevision;
       if (!initCompleter.isCompleted) {
         initCompleter.complete();
       }
@@ -214,8 +241,6 @@ document.close();
     );
   }
 
-  String get _windowsBootstrapUrl => '${AppConstants.baseUrl}/robots.txt';
-
   String get _bootstrapHtml =>
       '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
       '<body></body></html>';
@@ -227,6 +252,7 @@ document.close();
     Future<void>? cancelFuture,
   ) async {
     setRequestAdapterLogName(options, 'webview');
+    await _ensureCurrentSiteAdapter();
     _activeFetches++;
 
     final totalWatch = Stopwatch()..start();
@@ -924,6 +950,8 @@ document.close();
     _headlessWebView = null;
     _controller = null;
     _isInitialized = false;
+    _initializedBaseUrl = null;
+    _initializedSiteRevision = null;
     _disposeWhenIdle = false;
     if (_initCompleter != null && !_initCompleter!.isCompleted) {
       _initCompleter!.completeError(StateError('WebView adapter closed'));
@@ -931,6 +959,11 @@ document.close();
     _initCompleter = null;
     _activeCriticalCookieSync = null;
     _lastCriticalCookieSyncAt = null;
+    final idleCompleter = _idleCompleter;
+    _idleCompleter = null;
+    if (idleCompleter != null && !idleCompleter.isCompleted) {
+      idleCompleter.complete();
+    }
     for (final completer in _pendingRequests.values) {
       if (!completer.isCompleted) {
         completer.completeError(
@@ -943,6 +976,46 @@ document.close();
       }
     }
     _pendingRequests.clear();
+  }
+
+  void resetForSiteSwitch() {
+    _disposeWhenIdle = true;
+    if (_activeFetches == 0) {
+      close(force: false);
+    } else {
+      _idleCompleter ??= Completer<void>();
+    }
+  }
+
+  Future<void> _ensureCurrentSiteAdapter() async {
+    while (true) {
+      final expectedBaseUrl = AppConstants.baseUrl;
+      final expectedRevision = SiteContext.instance.revision;
+      if (_isInitialized &&
+          _controller != null &&
+          _initializedBaseUrl == expectedBaseUrl &&
+          _initializedSiteRevision == expectedRevision) {
+        return;
+      }
+      if (_activeFetches > 0) {
+        _disposeWhenIdle = true;
+        final idle = _idleCompleter ??= Completer<void>();
+        await idle.future;
+      } else if (_isInitialized || _controller != null) {
+        close(force: false);
+      } else {
+        final initializing = _initCompleter;
+        if (initializing != null && !initializing.isCompleted) {
+          try {
+            await initializing.future;
+          } catch (_) {
+            // initialize() 的调用方会在下一轮重新建立 WebView。
+          }
+        } else {
+          await initialize();
+        }
+      }
+    }
   }
 
   bool _shouldSyncAppCookies(Uri requestUri, Uri baseUri) {

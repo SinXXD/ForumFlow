@@ -135,4 +135,4 @@ security find-identity -v -p codesigning   # 应列出 "FluxDO Code Signing"
 
 然后在 `apple/Local.xcconfig` 中启用（见 example 文件的「用法 1」）。切换后首次启动钥匙串还会弹最后一次（旧 ACL 只认 adhoc 旧构建），点「始终允许」后 rebuild 不再弹。
 
-CI 发版使用同一张证书：把 p12 的 base64 与密码配置为仓库 secrets `MACOS_CODESIGN_P12_BASE64` / `MACOS_CODESIGN_P12_PASSWORD`（见 `.github/workflows/build.yaml` 的 "Setup macOS code signing" 步骤）。secrets 缺失时（如 fork）自动回退 adhoc 签名，构建不会失败。自签证书不等于公证，用户下载 DMG 后仍需右键打开或 `xattr -cr` 解除隔离，与 adhoc 时代一致。
+当前仓库的 GitHub Actions 只保留 Android arm64 nightly，不再自动执行 macOS/Flatpak 发版。若需要在本地恢复桌面端发布，请沿用上面的签名步骤；secrets 缺失时应回退 adhoc 签名。自签证书不等于公证，用户下载 DMG 后仍需右键打开或 `xattr -cr` 解除隔离。

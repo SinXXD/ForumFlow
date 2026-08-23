@@ -5,6 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../app_logger.dart';
+import '../../../config/site_context.dart';
+import '../../auth_session.dart';
 import '../../storage/resilient_secure_storage.dart';
 
 /// Cookie 同步服务
@@ -14,7 +16,9 @@ class CsrfTokenService {
   factory CsrfTokenService() => _instance;
   CsrfTokenService._internal();
 
-  static const String _csrfTokenKey = 'linux_do_csrf_token';
+  /// 多论坛支持：CSRF 存储 key 带站点前缀，各论坛独立。
+  static String get _csrfTokenKey =>
+      'csrf_token_${SiteContext.instance.host}';
 
   final ResilientSecureStorage _storage = ResilientSecureStorage();
 
@@ -60,7 +64,14 @@ class CsrfTokenService {
 
   /// 初始化：从本地存储恢复 CSRF token
   Future<void> init() async {
-    final raw = await _storage.read(key: _csrfTokenKey);
+    final expectedRevision = SiteContext.instance.revision;
+    final expectedHost = SiteContext.instance.host;
+    final key = _csrfTokenKey;
+    final raw = await _storage.read(key: key);
+    if (SiteContext.instance.revision != expectedRevision ||
+        SiteContext.instance.host != expectedHost) {
+      return;
+    }
     if (raw != null && raw.isNotEmpty) {
       _csrfToken = raw;
     }
@@ -101,10 +112,17 @@ class CsrfTokenService {
         DateTime.now().difference(lastFailureAt) < _failureCooldown) {
       return Future.value();
     }
-    _activeCsrfRequest ??= _fetchCsrfToken().whenComplete(() {
-      _activeCsrfRequest = null;
+    final active = _activeCsrfRequest;
+    if (active != null) return active;
+
+    final request = _fetchCsrfToken();
+    _activeCsrfRequest = request;
+    request.whenComplete(() {
+      if (identical(_activeCsrfRequest, request)) {
+        _activeCsrfRequest = null;
+      }
     });
-    return _activeCsrfRequest!;
+    return request;
   }
 
   Future<void> _fetchCsrfToken() async {
@@ -113,6 +131,9 @@ class CsrfTokenService {
       debugPrint('[CsrfTokenService] 主 dio 未注册,跳过 CSRF 刷新');
       return;
     }
+    final expectedRevision = SiteContext.instance.revision;
+    final expectedHost = SiteContext.instance.host;
+    final authGeneration = AuthSession().generation;
     try {
       const path = '/session/csrf';
       final response = await dio.get(
@@ -128,6 +149,11 @@ class CsrfTokenService {
           },
         ),
       );
+      if (SiteContext.instance.revision != expectedRevision ||
+          SiteContext.instance.host != expectedHost ||
+          !AuthSession().isValid(authGeneration)) {
+        return;
+      }
       final csrf = _extractCsrf(response.data);
       if (csrf != null && csrf.isNotEmpty) {
         _lastFailureAt = null;
@@ -145,6 +171,11 @@ class CsrfTokenService {
         );
       }
     } on DioException catch (e) {
+      if (SiteContext.instance.revision != expectedRevision ||
+          SiteContext.instance.host != expectedHost ||
+          !AuthSession().isValid(authGeneration)) {
+        return;
+      }
       _lastFailureAt = DateTime.now();
       final statusCode = e.response?.statusCode;
       final uri = e.requestOptions.uri.toString();
@@ -181,6 +212,11 @@ class CsrfTokenService {
         },
       );
     } catch (e, stackTrace) {
+      if (SiteContext.instance.revision != expectedRevision ||
+          SiteContext.instance.host != expectedHost ||
+          !AuthSession().isValid(authGeneration)) {
+        return;
+      }
       _lastFailureAt = DateTime.now();
       debugPrint('[CsrfTokenService] CSRF token 刷新失败: $e');
       AppLogger.error(
@@ -210,6 +246,9 @@ class CsrfTokenService {
   Future<void> reset() async {
     _csrfToken = null;
     _lastFailureAt = null;
+    // 切站/登出会推进 AuthSession，旧请求会被取消；清掉引用后新站可以
+    // 立即建立自己的刷新请求，旧请求完成时不能误清新请求。
+    _activeCsrfRequest = null;
     // 内存态已清,落盘失败不影响登出正确性
     try {
       await _storage.delete(key: _csrfTokenKey);

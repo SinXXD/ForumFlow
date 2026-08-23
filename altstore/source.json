@@ -1,13 +1,13 @@
 {
-  "name": "FluxDO Source",
-  "identifier": "com.github.lingyan000.fluxdo.AltStore",
+  "name": "ForumFlow Source",
+  "identifier": "app.forumflow.AltStore",
   "apps": [
     {
-      "name": "FluxDO",
-      "bundleIdentifier": "com.github.lingyan000.fluxdo",
-      "developerName": "lingyan000",
-      "localizedDescription": "A third-party client for LINUX DO community.",
-      "iconURL": "https://lingyan000.github.io/fluxdo/icon.png",
+      "name": "ForumFlow",
+      "bundleIdentifier": "app.forumflow",
+      "developerName": "ForumFlow contributors",
+      "localizedDescription": "A multi-forum Discourse client derived from the FluxDO project.",
+      "iconURL": "https://raw.githubusercontent.com/SinXXD/ForumFlow/main/web/icons/Icon-512.png",
       "versions": []
     }
   ]

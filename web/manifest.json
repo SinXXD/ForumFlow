@@ -1,11 +1,11 @@
 {
-    "name": "FluxDO",
-    "short_name": "FluxDO",
+    "name": "ForumFlow",
+    "short_name": "ForumFlow",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#101A3A",
+    "theme_color": "#263A86",
+    "description": "A multi-forum Discourse client with isolated site sessions.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

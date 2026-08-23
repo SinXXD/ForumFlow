@@ -548,6 +548,64 @@ class CookieJarService {
     }
   }
 
+  /// 只清除当前论坛及其相关子域的 Cookie。
+  ///
+  /// 多论坛共用一个 CookieJar；显式登出当前论坛时不能使用 [clearAll]，
+  /// 否则其它论坛的独立登录态会被一并删除。持久 Jar 按站点删除所有
+  /// cookie 名称，内存 Jar 走现有的逐 host 过期写入兜底；WebView 也按
+  /// 当前站点 host 集合清理。
+  Future<void> clearCurrentSite() async {
+    if (!_initialized) await initialize();
+
+    try {
+      final baseUri = Uri.parse(AppConstants.baseUrl);
+      final baseHost = baseUri.host.toLowerCase();
+      final knownHosts = await getKnownHostsForDomain(baseHost);
+      final jar = _cookieJar;
+      if (jar == null) return;
+
+      if (jar is EnhancedPersistCookieJar) {
+        final names = (await jar.readAllCookies())
+            .where((cookie) {
+              final domain = cookie.normalizedDomain;
+              if (domain == null || domain.isEmpty) return true;
+              return domain == baseHost || domain.endsWith('.$baseHost');
+            })
+            .map((cookie) => cookie.name)
+            .toSet();
+        for (final name in names) {
+          // replaceByNameForSite 会连同当前站点可见的 domain/path 变体
+          // 一并删除；deleteByName 只按单个 request URI 匹配，可能漏掉
+          // 同站子域或其它 path 的登录 Cookie。
+          await jar.replaceByNameForSite(baseUri, name, const []);
+        }
+      } else {
+        final names = <String>{};
+        for (final host in knownHosts) {
+          final cookies = await jar.loadForRequest(Uri.parse('https://$host'));
+          names.addAll(cookies.map((cookie) => cookie.name));
+        }
+        for (final name in names) {
+          await deleteCookie(name);
+        }
+      }
+
+      await _strategy.clearWebViewCookiesForHosts(
+        webViewCookieManager,
+        knownHosts,
+      );
+      // 某些 WebView 实现对 HttpOnly / domain 变体的 getCookies 枚举不完整，
+      // 关键登录 Cookie 再按三种 domain 形态补删一次。
+      for (final name in authCookieNames) {
+        await _deleteWebViewCookieVariants(name, knownHosts);
+      }
+
+      CookieLogger.delete(name: '*', source: 'clearCurrentSite');
+    } catch (e) {
+      debugPrint('[CookieJar] Failed to clear current site cookies: $e');
+    }
+  }
+
   /// 清除所有 Cookie（包括 WebView cookie store）
   Future<void> clearAll() async {
     if (!_initialized) await initialize();

@@ -24,7 +24,7 @@ detect_github_repo() {
     return
   fi
 
-  printf '%s\n' "Lingyan000/fluxdo"
+  printf '%s\n' "SinXXD/ForumFlow"
 }
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -118,8 +118,8 @@ docker run --rm --privileged \
       --ccache \
       --verbose \
       flatpak_app \
-      flatpak/com.github.lingyan000.fluxdo.yml
-    flatpak build-bundle repo fluxdo-linux-x86_64.flatpak com.github.lingyan000.fluxdo stable
+      flatpak/app.forumflow.yml
+    flatpak build-bundle repo forumflow-linux-x86_64.flatpak app.forumflow stable
   '
 
 echo "Flatpak bundle ready:"

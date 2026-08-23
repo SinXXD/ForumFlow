@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:hive_ce/hive.dart';
 
+import '../config/site_context.dart';
 import 'app_database.dart';
 
 /// 会话列表冷启缓存 DAO:整份 me/channels 的 DM 频道快照单 key 存,
@@ -20,7 +21,10 @@ class ChatCacheDao {
   static const String _kCachedAt = 'cached_at';
 
   static Future<Box<Map>> _defaultBox(String accountId) {
-    return AppDatabase.namedBox('chat_cache_$accountId');
+    // 同一用户名可能存在于多个论坛，聊天频道快照必须随站点隔离。
+    return AppDatabase.namedBox(
+      'chat_cache_${SiteContext.instance.host}_$accountId',
+    );
   }
 
   /// 读快照:(DM 频道 + 公共频道 + tracking 原始 JSON),无缓存返回 null

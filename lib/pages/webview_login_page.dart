@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:m3e_ui/m3e_ui.dart';
+import '../config/site_context.dart';
 import '../constants.dart';
 import '../providers/preferences_provider.dart';
 import '../services/credential_store_service.dart';
@@ -98,7 +99,13 @@ class _WebViewLoginPageState extends ConsumerState<WebViewLoginPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n.webviewLogin_title),
+        title: Text(
+          context.l10n.forum_webviewLoginTitle(
+            SiteContext.instance.current.displayName(
+              context.l10n.forum_defaultName,
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Symbols.content_paste_rounded),
@@ -254,7 +261,7 @@ class _WebViewLoginPageState extends ConsumerState<WebViewLoginPage> {
                         if (Platform.isAndroid) {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             const MethodChannel(
-                              'com.fluxdo/webauthn',
+                              'com.forumflow/webauthn',
                             ).invokeMethod('enableWebAuthentication');
                           });
                         }

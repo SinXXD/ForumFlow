@@ -1,0 +1,94 @@
+{
+  "@@locale": "en",
+  "forum_title": "Forum Management",
+  "forum_switchTitle": "Switch forum",
+  "forum_manageAction": "Manage forums",
+  "forum_switchTo": "Switch to this forum",
+  "forum_addNameLabel": "Name (optional; a generic name is used if blank)",
+  "forum_defaultName": "Forum community",
+  "forum_siteAddressLabel": "Forum address",
+  "forum_siteAddressHint": "https://example.com",
+  "forum_addAction": "Add forum",
+  "forum_addSuccess": "Added \"{name}\"",
+  "@forum_addSuccess": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_deleteTitle": "Remove forum",
+  "forum_deleteMessage": "Remove \"{name}\" from the list? Saved login state and local data will be kept, so adding the same forum again can continue using them.",
+  "@forum_deleteMessage": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_deleteFailed": "Cannot remove a preset or the current forum",
+  "forum_current": "Current forum: {name}",
+  "@forum_current": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_switchTooltip": "Switch forum (current: {name})",
+  "@forum_switchTooltip": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "forum_description": "Each forum has an independent login state (cookies, credentials, bookmarks, and drafts). Switching does not affect the others; browsing history and reading preferences are shared.",
+  "forum_hcaptchaTitle": "Complete human verification",
+  "forum_hcaptchaInstruction": "Complete the challenge below to continue signing in.",
+  "forum_hcaptchaNotConfigured": "This forum did not publish an hCaptcha configuration. Continue to sign in directly.",
+  "forum_continueLogin": "Continue sign-in",
+  "forum_loginProcessing": "Signing in…",
+  "forum_hcaptchaInitFailed": "Could not initialize the verification page",
+  "forum_loginScriptFailed": "Could not run the login script",
+  "forum_loginResponseParseFailed": "Could not parse the login response",
+  "forum_hcaptchaFailed": "Human verification failed; please try again (hCaptcha {status})",
+  "@forum_hcaptchaFailed": {
+    "placeholders": {
+      "status": {"type": "int"}
+    }
+  },
+  "forum_loginRequestFailed": "The login request failed",
+  "forum_unknownLoginPhase": "Unknown login phase: {phase}",
+  "@forum_unknownLoginPhase": {
+    "placeholders": {
+      "phase": {"type": "String"}
+    }
+  },
+  "forum_cfVerificationExpired": "Cloudflare verification expired; please try again (CSRF {status})",
+  "@forum_cfVerificationExpired": {
+    "placeholders": {
+      "status": {"type": "int"}
+    }
+  },
+  "forum_cfRechecking": "Cloudflare verification expired; verifying again…",
+  "forum_openBrowserFailed": "Could not open the browser; please try again",
+  "forum_cloudflareNotComplete": "Cloudflare verification was not completed; please try again",
+  "forum_twoFactorAppHint": "Enter the 6-digit code shown in your authenticator app",
+  "forum_twoFactorRequired": "This account requires two-factor verification",
+  "forum_invalidCredentials": "Incorrect username or password",
+  "forum_twoFactorFailed": "Two-factor verification failed",
+  "forum_accountNotActivated": "Account not activated; complete activation from {email}",
+  "@forum_accountNotActivated": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "forum_accountNotApproved": "Account has not been approved",
+  "forum_passwordExpired": "Password expired; use browser sign-in to reset it",
+  "forum_networkError": "Network error",
+  "forum_loginFailed": "Sign-in failed",
+  "forum_savedCredentialsCleared": "Saved credentials cleared",
+  "forum_clearSavedCredentials": "Clear saved credentials",
+  "forum_browserAuthLogin": "Sign in with browser authorization",
+  "forum_otherLoginMethods": "Other sign-in methods (OAuth / Passkey / registration)",
+  "forum_or": "or",
+  "forum_webviewLoginTitle": "Sign in to {name}",
+  "@forum_webviewLoginTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  }
+}

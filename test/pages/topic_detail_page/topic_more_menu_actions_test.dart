@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/pages/topic_detail_page/topic_more_menu_actions.dart';
+import 'package:forumflow/pages/topic_detail_page/topic_more_menu_actions.dart';
 
 void main() {
   test('选择编辑书签时只会触发书签动作', () {

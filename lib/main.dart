@@ -79,6 +79,7 @@ import 'services/windows_webview_environment_service.dart';
 import 'services/user_presence_service.dart';
 import 'models/user.dart';
 import 'constants.dart';
+import 'config/site_context.dart';
 import 'providers/connectivity_provider.dart';
 import 'utils/dialog_utils.dart';
 import 'utils/frame_jank_monitor.dart';
@@ -259,12 +260,16 @@ Future<void> main() async {
   }
 
   // 阶段 1：并行执行所有不相互依赖的初始化
+  // prefs 先行获取：SiteContext（多论坛当前站点）必须在任何 baseUrl
+  // 读取（如 CookieJarService.initialize 的迁移逻辑）之前初始化，
+  // 否则会误用默认站点。
+  final prefs = await SharedPreferences.getInstance();
+  await SiteContext.instance.initialize(prefs);
   final futures = <Future<dynamic>>[
-    SharedPreferences.getInstance(),
     AppConstants.initUserAgent(),
     LogWriter.init(),
     ProxyCertificate.initialize(),
-    // Windows 深链协议注册(discourse:// / fluxdo://):写 HKCU 免管理员,
+    // Windows 深链协议注册(discourse:// / forumflow:// / fluxdo://):写 HKCU 免管理员,
     // 幂等,失败不阻塞启动。其他平台由清单/plist 声明,此调用为 no-op。
     if (Platform.isWindows) ensureWindowsProtocolsRegistered(),
     CookieJarService().initialize(),
@@ -280,8 +285,7 @@ Future<void> main() async {
     futures.add(windowManager.ensureInitialized());
     futures.add(acrylic.Window.initialize());
   }
-  final results = await Future.wait(futures);
-  final prefs = results[0] as SharedPreferences;
+  await Future.wait(futures);
   await AuthIssueNoticeService.instance.initialize(prefs);
 
   // release 下按设置开关启用性能监控(debug/profile 已在上方无条件启用)
@@ -360,7 +364,7 @@ Future<void> main() async {
     ProxySettingsService.instance.initialize(prefs),
     if (Platform.isAndroid)
       MethodChannel(
-        'com.github.lingyan000.fluxdo/crashlytics',
+        'app.forumflow/crashlytics',
       ).invokeMethod('setCrashlyticsEnabled', {'enabled': crashlyticsEnabled}),
   ]);
   // rhttp (Rust reqwest) 初始化：在 ProxySettingsService 之后、NetworkSettingsService 之前
@@ -778,7 +782,7 @@ class MainApp extends ConsumerWidget {
                 JankNavObserver(),
                 EscFallbackObserver(),
               ],
-              title: 'FluxDO',
+              title: 'ForumFlow',
               locale: TranslationProvider.of(context).flutterLocale,
               localizationsDelegates: const [
                 GlobalMaterialLocalizations.delegate,

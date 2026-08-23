@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/models/seeking.dart';
-import 'package:fluxdo/models/user_action.dart';
-import 'package:fluxdo/providers/seeking_provider.dart';
+import 'package:forumflow/models/seeking.dart';
+import 'package:forumflow/models/user_action.dart';
+import 'package:forumflow/providers/seeking_provider.dart';
 
 void main() {
   group('SeekingState', () {

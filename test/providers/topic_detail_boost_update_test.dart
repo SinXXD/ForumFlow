@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluxdo/models/topic.dart';
-import 'package:fluxdo/models/user.dart';
-import 'package:fluxdo/providers/topic_detail_provider.dart';
+import 'package:forumflow/models/topic.dart';
+import 'package:forumflow/models/user.dart';
+import 'package:forumflow/providers/topic_detail_provider.dart';
 
 Boost _boost({required int id, required int userId, required String username}) {
   return Boost(

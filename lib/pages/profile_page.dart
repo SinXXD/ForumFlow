@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:app_icons/app_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../constants.dart';
 import '../models/user.dart';
 import '../providers/discourse_providers.dart';
 import '../providers/selected_topic_provider.dart';
@@ -25,6 +26,7 @@ import '../widgets/common/loading_dialog.dart';
 import '../widgets/common/notification_icon_button.dart';
 import '../widgets/common/flair_badge.dart';
 import '../widgets/common/smart_avatar.dart';
+import '../widgets/forum/forum_switch_button.dart';
 import '../providers/app_state_refresher.dart';
 import 'metaverse_page.dart';
 import 'package:ai_model_manager/ai_model_manager.dart';
@@ -324,7 +326,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (username != null && username.isNotEmpty) {
       await WebViewPage.open(
         context, 
-        'https://linux.do/u/$username/preferences/account',
+        '${AppConstants.baseUrl}/u/$username/preferences/account',
         title: context.l10n.profile_editProfile,
         injectCss: '''
           .new-user-content-wrapper {
@@ -420,40 +422,44 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               )
             : null,
         centerTitle: false,
-        actions: isLoggedIn ? [
-          // 状态指示（固定占位，避免后方图标闪烁）
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _isRefreshing
-                ? const SizedBox(
-                    key: ValueKey('refreshing'),
-                    width: 48,
-                    height: 48,
-                    child: Center(
-                      child: LoadingSpinner(size: 18),
-                    ),
-                  )
-                : isOffline
-                    ? SizedBox(
-                        key: const ValueKey('offline'),
-                        width: 48,
-                        height: 48,
-                        child: Icon(Symbols.cloud_off_rounded, color: theme.colorScheme.outline),
-                      )
-                    : const SizedBox(key: ValueKey('idle'), width: 0),
-          ),
-          IconButton(
-            icon: const Icon(Symbols.manage_accounts_rounded),
-            tooltip: context.l10n.profile_editProfile,
-            onPressed: _openProfileEdit,
-          ),
-          // 侧栏模式下通知角标已在侧栏头像上显示
-          if (!Responsive.showNavigationRail(context))
-            const Padding(
-              padding: EdgeInsets.only(right: 8.0),
-              child: NotificationIconButton(),
+        actions: [
+          // 论坛切换器：未登录（游客浏览）时同样可见
+          const ForumSwitchButton(),
+          if (isLoggedIn) ...[
+            // 状态指示（固定占位，避免后方图标闪烁）
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: _isRefreshing
+                  ? const SizedBox(
+                      key: ValueKey('refreshing'),
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: LoadingSpinner(size: 18),
+                      ),
+                    )
+                  : isOffline
+                      ? SizedBox(
+                          key: const ValueKey('offline'),
+                          width: 48,
+                          height: 48,
+                          child: Icon(Symbols.cloud_off_rounded, color: theme.colorScheme.outline),
+                        )
+                      : const SizedBox(key: ValueKey('idle'), width: 0),
             ),
-        ] : null,
+            IconButton(
+              icon: const Icon(Symbols.manage_accounts_rounded),
+              tooltip: context.l10n.profile_editProfile,
+              onPressed: _openProfileEdit,
+            ),
+            // 侧栏模式下通知角标已在侧栏头像上显示
+            if (!Responsive.showNavigationRail(context))
+              const Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: NotificationIconButton(),
+              ),
+          ],
+        ],
       ),
       // 「我的」页是**导航枢纽**:所有入口(话题/设置/资料…)一律开
       // 新页面,不做右栏平行视界(曾接过 panes 宿主,用户拍板退役:
@@ -967,7 +973,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         child: FilledButton.icon(
           onPressed: _goToLogin,
           icon: const Icon(Symbols.login_rounded, size: 20),
-          label: Text(context.l10n.profile_loginLinuxDo, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          label: Text(context.l10n.profile_loginForum, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
           style: FilledButton.styleFrom(
             minimumSize: const Size(double.infinity, 52),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

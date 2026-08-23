@@ -8,6 +8,8 @@ import 'package:pointycastle/export.dart';
 import 'package:uuid/uuid.dart';
 
 import '../constants.dart';
+import '../config/site_context.dart';
+import 'auth_session.dart';
 import 'log/log_writer.dart';
 import 'network/cookie/cookie_jar_service.dart';
 import 'storage/resilient_secure_storage.dart';
@@ -42,18 +44,24 @@ class UserApiKeyService {
   static final UserApiKeyService _instance = UserApiKeyService._();
   factory UserApiKeyService() => _instance;
 
-  static const _keyPrivateKey = 'user_api_key_rsa_private';
-  static const _keyApiKey = 'user_api_key_key';
-  static const _keyClientId = 'user_api_key_client_id';
+  /// 多论坛支持：所有存储 key 带站点前缀，各论坛 API key / 密钥独立。
+  static String get _keyPrivateKey =>
+      'user_api_key_rsa_private_${SiteContext.instance.host}';
+  static String get _keyApiKey =>
+      'user_api_key_key_${SiteContext.instance.host}';
+  static String get _keyClientId =>
+      'user_api_key_client_id_${SiteContext.instance.host}';
   /// 跨设备扫码专用 client_id(与浏览器授权 client 隔离)。
   /// 稳定复用,使服务端 create 时 destroy_all 只清掉上一枚分享 key。
-  static const _keyQrClientId = 'user_api_key_qr_client_id';
+  static String get _keyQrClientId =>
+      'user_api_key_qr_client_id_${SiteContext.instance.host}';
   // nonce 持久化:跨重启存活。冷启动 getInitialLink 会重放上次的
   // auth_redirect 深链,内存态 nonce 会丢失导致每次重启误报"回调解析失败"。
-  static const _keyPendingNonce = 'user_api_key_pending_nonce';
+  static String get _keyPendingNonce =>
+      'user_api_key_pending_nonce_${SiteContext.instance.host}';
 
   static const String authRedirect = 'discourse://auth_redirect';
-  static const String applicationName = 'FluxDO';
+  static const String applicationName = 'ForumFlow';
   static const String scopes = 'one_time_password';
 
   /// 跨设备扫码 key 的 application_name。展示端靠它在
@@ -76,6 +84,14 @@ class UserApiKeyService {
   DateTime? _lastSelfHealFailureAt;
   Future<Map<String, dynamic>?>? _activeSelfHeal;
 
+  /// 切换论坛时作废旧站点的自愈运行态；各站点的持久化 key 本身已经
+  /// 通过 host 隔离。旧请求由 AuthSession 负责取消，旧 future 完成时不会
+  /// 清掉新站点刚建立的 self-heal future。
+  void resetForSiteSwitch() {
+    _lastSelfHealFailureAt = null;
+    _activeSelfHeal = null;
+  }
+
   // ---------- 存储 ----------
 
   Future<bool> hasKey() async {
@@ -86,8 +102,8 @@ class UserApiKeyService {
   Future<String?> readApiKey() => _storage.read(key: _keyApiKey);
 
   /// 清除本地凭证(用户显式登出或重置时调用)
-  Future<void> clearKey() async {
-    await _storage.delete(key: _keyApiKey);
+  Future<void> clearKey({String? storageKey}) async {
+    await _storage.delete(key: storageKey ?? _keyApiKey);
     _lastSelfHealFailureAt = null;
   }
 
@@ -135,28 +151,31 @@ class UserApiKeyService {
   }
 
   Future<String> _ensureClientId() async {
-    var clientId = await _storage.read(key: _keyClientId);
+    final storageKey = _keyClientId;
+    var clientId = await _storage.read(key: storageKey);
     if (clientId == null || clientId.isEmpty) {
       clientId = const Uuid().v4();
-      await _storage.write(key: _keyClientId, value: clientId);
+      await _storage.write(key: storageKey, value: clientId);
     }
     return clientId;
   }
 
   /// 跨设备扫码专用 client_id,与 [_ensureClientId] 隔离。
   Future<String> _ensureQrClientId() async {
-    var clientId = await _storage.read(key: _keyQrClientId);
+    final storageKey = _keyQrClientId;
+    var clientId = await _storage.read(key: storageKey);
     if (clientId == null || clientId.isEmpty) {
       clientId = const Uuid().v4();
-      await _storage.write(key: _keyQrClientId, value: clientId);
+      await _storage.write(key: storageKey, value: clientId);
     }
     return clientId;
   }
 
   // ---------- RSA ----------
 
-  Future<RSAPrivateKey?> _readPrivateKey() async {
-    final raw = await _storage.read(key: _keyPrivateKey);
+  Future<RSAPrivateKey?> _readPrivateKey({String? storageKey}) async {
+    final key = storageKey ?? _keyPrivateKey;
+    final raw = await _storage.read(key: key);
     if (raw == null || raw.isEmpty) return null;
     try {
       final map = jsonDecode(raw) as Map<String, dynamic>;
@@ -174,14 +193,18 @@ class UserApiKeyService {
 
   /// 确保 RSA 密钥对存在,返回公钥 PEM(SubjectPublicKeyInfo 格式,
   /// OpenSSL::PKey::RSA.new 直接可读)。密钥生成在后台 isolate,避免掉帧。
-  Future<String> ensurePublicKeyPem({bool regenerate = false}) async {
+  Future<String> ensurePublicKeyPem({
+    bool regenerate = false,
+    String? privateKeyStorageKey,
+  }) async {
+    final key = privateKeyStorageKey ?? _keyPrivateKey;
     if (!regenerate) {
-      final existing = await _readPrivateKey();
+      final existing = await _readPrivateKey(storageKey: key);
       if (existing != null) return _encodePublicKeyPem(existing);
     }
     final generated = await compute(_generateRsaKeyPairInIsolate, 2048);
     await _storage.write(
-      key: _keyPrivateKey,
+      key: key,
       value: jsonEncode({
         'n': generated[0],
         'd': generated[1],
@@ -222,8 +245,11 @@ class UserApiKeyService {
   }
 
   /// 解密服务端回传的 Base64(RSA-PKCS1(data))
-  Future<String?> _decrypt(String base64Payload) async {
-    final privateKey = await _readPrivateKey();
+  Future<String?> _decrypt(
+    String base64Payload, {
+    String? privateKeyStorageKey,
+  }) async {
+    final privateKey = await _readPrivateKey(storageKey: privateKeyStorageKey);
     if (privateKey == null) return null;
     try {
       // Ruby Base64.encode64 每 60 字符插入换行,URL 传输还可能引入空格
@@ -357,11 +383,22 @@ class UserApiKeyService {
 
   /// 构建授权页 URL(系统浏览器打开;未登录会先被引导到 /login,登录后自动回到授权页)
   Future<Uri> buildAuthorizeUrl() async {
-    final publicKeyPem = await ensurePublicKeyPem();
+    final expectedRevision = SiteContext.instance.revision;
+    final expectedHost = SiteContext.instance.host;
+    final baseUrl = AppConstants.baseUrl;
+    final pendingNonceKey = _keyPendingNonce;
+    final privateKeyStorageKey = _keyPrivateKey;
+    final publicKeyPem = await ensurePublicKeyPem(
+      privateKeyStorageKey: privateKeyStorageKey,
+    );
     final clientId = await _ensureClientId();
+    if (SiteContext.instance.revision != expectedRevision ||
+        SiteContext.instance.host != expectedHost) {
+      throw StateError('论坛已切换，取消旧的授权 URL');
+    }
     final nonce = const Uuid().v4();
-    await _storage.write(key: _keyPendingNonce, value: nonce);
-    return Uri.parse('${AppConstants.baseUrl}/user-api-key/new').replace(
+    await _storage.write(key: pendingNonceKey, value: nonce);
+    return Uri.parse('$baseUrl/user-api-key/new').replace(
       queryParameters: {
         'application_name': applicationName,
         'client_id': clientId,
@@ -383,7 +420,10 @@ class UserApiKeyService {
   Future<({bool ok, String? otp, bool stale})> handleAuthRedirect(
     Uri uri,
   ) async {
-    final pendingNonce = await _storage.read(key: _keyPendingNonce);
+    final pendingNonceKey = _keyPendingNonce;
+    final apiKeyStorageKey = _keyApiKey;
+    final privateKeyStorageKey = _keyPrivateKey;
+    final pendingNonce = await _storage.read(key: pendingNonceKey);
 
     final payloadParam = uri.queryParameters['payload'];
     if (payloadParam == null || payloadParam.isEmpty) {
@@ -391,7 +431,10 @@ class UserApiKeyService {
       return (ok: false, otp: null, stale: true);
     }
 
-    final decrypted = await _decrypt(payloadParam);
+    final decrypted = await _decrypt(
+      payloadParam,
+      privateKeyStorageKey: privateKeyStorageKey,
+    );
     if (decrypted == null) {
       // 解密失败多为残留回调(公钥已轮换),静默忽略
       _log('info', 'auth_redirect_decrypt_failed', '授权回调 payload 解密失败,忽略');
@@ -415,7 +458,7 @@ class UserApiKeyService {
       return (ok: false, otp: null, stale: true);
     }
     // 确认是本次授权流程,消费 nonce(此后失败才提示用户)
-    await _storage.delete(key: _keyPendingNonce);
+    await _storage.delete(key: pendingNonceKey);
 
     final key = payload['key'] as String?;
     if (key == null || key.isEmpty) {
@@ -423,13 +466,16 @@ class UserApiKeyService {
       return (ok: false, otp: null, stale: false);
     }
 
-    await _storage.write(key: _keyApiKey, value: key);
+    await _storage.write(key: apiKeyStorageKey, value: key);
     _lastSelfHealFailureAt = null;
 
     String? otp;
     final otpParam = uri.queryParameters['oneTimePassword'];
     if (otpParam != null && otpParam.isNotEmpty) {
-      otp = await _decrypt(otpParam);
+      otp = await _decrypt(
+        otpParam,
+        privateKeyStorageKey: privateKeyStorageKey,
+      );
     }
 
     _log('info', 'user_api_key_authorized', '授权成功,User API Key 已保存', {
@@ -443,10 +489,21 @@ class UserApiKeyService {
 
   /// 用 API key 静默补发 OTP。
   /// 服务端 302 到 auth_redirect?oneTimePassword=<加密>,从 Location 头解析。
-  Future<String?> requestOtp(Dio dio) async {
-    final apiKey = await readApiKey();
+  Future<String?> requestOtp(
+    Dio dio, {
+    String? apiKeyOverride,
+    String? storageKey,
+    String? privateKeyStorageKey,
+    bool Function()? isCurrent,
+  }) async {
+    if (isCurrent?.call() == false) return null;
+    final apiKey = apiKeyOverride ?? await readApiKey();
+    if (isCurrent?.call() == false) return null;
     if (apiKey == null || apiKey.isEmpty) return null;
-    final publicKeyPem = await ensurePublicKeyPem();
+    final publicKeyPem = await ensurePublicKeyPem(
+      privateKeyStorageKey: privateKeyStorageKey,
+    );
+    if (isCurrent?.call() == false) return null;
 
     try {
       final response = await dio.post(
@@ -467,6 +524,7 @@ class UserApiKeyService {
           extra: const {'skipAuthCheck': true, 'skipCsrf': true},
         ),
       );
+      if (isCurrent?.call() == false) return null;
 
       final location = response.headers.value('location');
       if (location == null || location.isEmpty) {
@@ -479,7 +537,10 @@ class UserApiKeyService {
         _log('warning', 'otp_request_no_otp_param', 'Location 无 oneTimePassword');
         return null;
       }
-      final otp = await _decrypt(otpParam);
+      final otp = await _decrypt(
+        otpParam,
+        privateKeyStorageKey: privateKeyStorageKey,
+      );
       if (otp == null) {
         _log('warning', 'otp_decrypt_failed', 'OTP 解密失败');
       }
@@ -490,7 +551,9 @@ class UserApiKeyService {
       if (status == 403) {
         _log('warning', 'otp_request_rejected',
             'OTP 补发被拒(403),清除本地 key', {'statusCode': status});
-        await clearKey();
+        if (isCurrent?.call() != false) {
+          await clearKey(storageKey: storageKey);
+        }
       } else {
         _log('warning', 'otp_request_failed', 'OTP 补发请求失败',
             {'statusCode': status, 'errorType': e.type.toString()});
@@ -508,7 +571,12 @@ class UserApiKeyService {
   ///   CfChallengeInterceptor 会在 cf_clearance 失效时兜底(前台弹 CF 验证)。
   /// - CSRF 用主 dio 手动 GET /session/csrf 取,POST 时 skipCsrf + 手动带
   ///   X-CSRF-Token,避免 RequestHeaderInterceptor 回落到独立 dio 刷新。
-  Future<String?> redeemOtp(Dio dio, String otp) async {
+  Future<String?> redeemOtp(
+    Dio dio,
+    String otp, {
+    bool Function()? isCurrent,
+  }) async {
+    if (isCurrent?.call() == false) return null;
     // OTP 令牌是 hex,直接拼路径(路由约束 [0-9a-f]+)
     if (!RegExp(r'^[0-9a-f]+$').hasMatch(otp)) {
       _log('warning', 'otp_redeem_bad_format', 'OTP 格式异常,拒绝兑换');
@@ -516,10 +584,12 @@ class UserApiKeyService {
     }
 
     final beforeToken = await _cookieJar.getTToken();
+    if (isCurrent?.call() == false) return null;
     try {
       // 1. 主 dio 取 CSRF(GET 无需 CSRF;skipCsrf 避免触发独立 dio 刷新;
       //    过 CF 靠 rhttp 指纹 + CfChallengeInterceptor 兜底)
       final csrf = await _fetchCsrfViaMainDio(dio);
+      if (isCurrent?.call() == false) return null;
       if (csrf == null || csrf.isEmpty) {
         _log('warning', 'otp_redeem_no_csrf', 'OTP 兑换取 CSRF 失败');
         return null;
@@ -550,6 +620,7 @@ class UserApiKeyService {
 
       // 成功路径:302 → / 且 Set-Cookie _t(由 AppCookieManager 落 jar)
       final afterToken = await _cookieJar.getTToken();
+      if (isCurrent?.call() == false) return null;
       final ok = afterToken != null &&
           afterToken.isNotEmpty &&
           afterToken != beforeToken;
@@ -602,7 +673,23 @@ class UserApiKeyService {
     final inFlight = _activeSelfHeal;
     if (inFlight != null) return inFlight;
 
-    final future = _selfHealImpl(dio);
+    final siteRevision = SiteContext.instance.revision;
+    final siteId = SiteContext.instance.current.id;
+    final authGeneration = AuthSession().generation;
+    final apiKeyStorageKey = _keyApiKey;
+    final privateKeyStorageKey = _keyPrivateKey;
+    bool isCurrent() {
+      return SiteContext.instance.revision == siteRevision &&
+          SiteContext.instance.current.id == siteId &&
+          AuthSession().isValid(authGeneration);
+    }
+
+    final future = _selfHealImpl(
+      dio,
+      apiKeyStorageKey: apiKeyStorageKey,
+      privateKeyStorageKey: privateKeyStorageKey,
+      isCurrent: isCurrent,
+    );
     _activeSelfHeal = future;
     future.whenComplete(() {
       if (identical(_activeSelfHeal, future)) _activeSelfHeal = null;
@@ -610,8 +697,16 @@ class UserApiKeyService {
     return future;
   }
 
-  Future<Map<String, dynamic>?> _selfHealImpl(Dio dio) async {
-    if (!await hasKey()) return null;
+  Future<Map<String, dynamic>?> _selfHealImpl(
+    Dio dio, {
+    required String apiKeyStorageKey,
+    required String privateKeyStorageKey,
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent()) return null;
+    final apiKey = await _storage.read(key: apiKeyStorageKey);
+    if (!isCurrent()) return null;
+    if (apiKey == null || apiKey.isEmpty) return null;
 
     final lastFailure = _lastSelfHealFailureAt;
     if (lastFailure != null &&
@@ -622,13 +717,21 @@ class UserApiKeyService {
 
     _log('info', 'self_heal_started', '开始 User API Key 会话自愈');
 
-    final otp = await requestOtp(dio);
+    final otp = await requestOtp(
+      dio,
+      apiKeyOverride: apiKey,
+      storageKey: apiKeyStorageKey,
+      privateKeyStorageKey: privateKeyStorageKey,
+      isCurrent: isCurrent,
+    );
+    if (!isCurrent()) return null;
     if (otp == null) {
       _lastSelfHealFailureAt = DateTime.now();
       return null;
     }
 
-    final newToken = await redeemOtp(dio, otp);
+    final newToken = await redeemOtp(dio, otp, isCurrent: isCurrent);
+    if (!isCurrent()) return null;
     if (newToken == null) {
       _lastSelfHealFailureAt = DateTime.now();
       return null;
@@ -643,6 +746,7 @@ class UserApiKeyService {
           extra: const {'skipAuthCheck': true, 'skipCsrf': true},
         ),
       );
+      if (!isCurrent()) return null;
       final data = response.data;
       final currentUser = data is Map<String, dynamic>
           ? data['current_user']

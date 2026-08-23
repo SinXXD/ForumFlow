@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+
+import '../constants.dart';
 import 'package:app_icons/app_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/site_context.dart';
 import '../l10n/s.dart';
 import '../services/auth_session.dart';
 import '../services/cf_challenge_service.dart';
@@ -21,12 +24,12 @@ import 'package:m3e_ui/m3e_ui.dart';
 import 'qr_login_scan_page.dart';
 import 'webview_login_page.dart';
 
-/// linux.do 原生登录页。
+/// Discourse forum login page.
 ///
 /// 主路径走 [DiscourseService.loginWithPassword] (在 `_LoginMixin` 里),
 /// 不加载 Discourse Ember bundle, 绕开 iOS 15 的 ES2022 `static{}` 兼容问题。
 ///
-/// 流程对齐 linux.do 网页:
+/// 流程对齐当前论坛的 Discourse 登录接口:
 /// 1. 弹 hcaptcha 人机验证 (mini WebView, 只加载几 KB hcaptcha widget)
 /// 2. POST /hcaptcha/create.json 用 token 换 h_captcha_temp_id cookie
 /// 3. POST /session.json 真正登录
@@ -35,8 +38,6 @@ import 'webview_login_page.dart';
 /// 失败 / 高级场景 (OAuth / 注册 / 找回密码 / 2FA 走 backup code 等) 兜底跳
 /// [WebViewLoginPage]。
 ///
-/// linux.do 的 hcaptcha sitekey 写死, 后续可从 PreloadedDataService 动态拿。
-const String _kLinuxDoHcaptchaSiteKey = 'a776b4ac-8c4c-441e-986a-c6ee9ed8cf08';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -101,7 +102,7 @@ class _LoginPageState extends State<LoginPage>
   }
 
   /// 浏览器授权登录:拉起系统浏览器打开 /user-api-key/new,授权后
-  /// 深链 fluxdo://auth_redirect 回 App,由 UserApiKeyLoginFlow 完成
+  /// 深链 forumflow://auth_redirect 回 App,由 UserApiKeyLoginFlow 完成
   /// OTP 兑换与登录收口,这里只负责发起和成功后 pop。
   Future<void> _loginWithBrowserAuth() async {
     if (_browserAuthLaunching) return;
@@ -111,7 +112,7 @@ class _LoginPageState extends State<LoginPage>
       // 首次会懒生成 RSA 密钥对(isolate),可能耗时数秒
       final launched = await UserApiKeyLoginFlow.instance.start();
       if (!launched && mounted) {
-        ToastService.showError('无法打开浏览器,请重试');
+        ToastService.showError(context.l10n.forum_openBrowserFailed);
       }
     } finally {
       if (mounted) setState(() => _browserAuthLaunching = false);
@@ -144,6 +145,13 @@ class _LoginPageState extends State<LoginPage>
   /// [CfChallengeInterceptor._syncCookiesOnce] 触发, 我们直接调 showManualVerify
   /// 不经过 interceptor, 所以要手动 sync, 不然 jar 还是空)。
   Future<bool> _ensureCfClearance() async {
+    // Linux.do currently needs a pre-established CF clearance before the
+    // native login flow. Other forums may not use Cloudflare at all; forcing
+    // their login through Linux.do's challenge page would block valid users.
+    // If another forum does challenge the WebView, the CSRF retry path in the
+    // dialog will handle it on demand.
+    if (SiteContext.instance.current.id != 'linux.do') return true;
+
     final jar = CookieJarService();
     var clearance = await jar.getCfClearance();
     if (clearance != null && clearance.isNotEmpty) return true;
@@ -181,7 +189,7 @@ class _LoginPageState extends State<LoginPage>
     // 直接 403 (TLS 指纹不对). 没有就弹 CF 手动验证页让用户人机过一次。
     if (!await _ensureCfClearance()) {
       if (mounted) {
-        ToastService.showError('Cloudflare 验证未完成,请重试');
+        ToastService.showError(context.l10n.forum_cloudflareNotComplete);
       }
       return false;
     }
@@ -192,7 +200,14 @@ class _LoginPageState extends State<LoginPage>
     // /hcaptcha/create.json)。读 prefs 直接走 SharedPreferences (不依赖
     // riverpod, LoginPage 是普通 StatefulWidget)。
     final prefs = await SharedPreferences.getInstance();
-    final hcaptchaEndpoint = prefs.getString('pref_hcaptcha_create_endpoint');
+    final currentSite = SiteContext.instance.current;
+    final siteEndpointKey =
+        'pref_hcaptcha_create_endpoint_${currentSite.host}';
+    final hcaptchaEndpoint =
+        prefs.getString(siteEndpointKey) ??
+        (currentSite.id == 'linux.do'
+            ? prefs.getString('pref_hcaptcha_create_endpoint')
+            : null);
     if (!mounted) return false;
 
     // Step 1-3: WebView 内 JS 全流程登录 (csrf → hcaptcha/create → session)。
@@ -201,15 +216,15 @@ class _LoginPageState extends State<LoginPage>
     // 2FA 通过 onNeedSecondFactor 回调弹 TOTP, 由 dialog 内同一 WebView 重试。
     final result = await showWebViewLoginDialog(
       context,
-      siteKey: _kLinuxDoHcaptchaSiteKey,
+      siteKey: currentSite.hcaptchaSiteKey,
       identifier: identifier,
       password: password,
       hcaptchaCreateEndpoint: hcaptchaEndpoint,
       onNeedSecondFactor: (need) => showTwoFactorDialog(
         context,
         hint: need.totpEnabled
-            ? '请输入身份验证器 App 显示的 6 位验证码'
-            : '此账号需要二步验证',
+            ? context.l10n.forum_twoFactorAppHint
+            : context.l10n.forum_twoFactorRequired,
         onUseBackupCode: () => _loginWithWebView(),
       ),
     );
@@ -247,15 +262,17 @@ class _LoginPageState extends State<LoginPage>
   }
 
   void _showFailureToast(LoginFailure f) {
+    final l10n = context.l10n;
     final msg = switch (f.kind) {
-      LoginErrorKind.invalidCredentials => '用户名或密码错误',
-      LoginErrorKind.secondFactorRequired => f.message ?? '二步验证失败',
+      LoginErrorKind.invalidCredentials => l10n.forum_invalidCredentials,
+      LoginErrorKind.secondFactorRequired =>
+        f.message ?? l10n.forum_twoFactorFailed,
       LoginErrorKind.notActivated =>
-        '账号未激活,请到邮箱 ${f.sentToEmail ?? ''} 完成激活',
-      LoginErrorKind.notApproved => '账号尚未通过审核',
-      LoginErrorKind.passwordExpired => '密码已过期,请用浏览器登录重设密码',
-      LoginErrorKind.network => f.message ?? '网络异常',
-      LoginErrorKind.unknown => f.message ?? '登录失败',
+        l10n.forum_accountNotActivated(f.sentToEmail ?? ''),
+      LoginErrorKind.notApproved => l10n.forum_accountNotApproved,
+      LoginErrorKind.passwordExpired => l10n.forum_passwordExpired,
+      LoginErrorKind.network => f.message ?? l10n.forum_networkError,
+      LoginErrorKind.unknown => f.message ?? l10n.forum_loginFailed,
     };
     ToastService.showError(msg);
   }
@@ -278,7 +295,7 @@ class _LoginPageState extends State<LoginPage>
       _savedUsername = null;
       _savedPassword = null;
     });
-    ToastService.showSuccess('已清除保存的账号密码');
+    ToastService.showSuccess(context.l10n.forum_savedCredentialsCleared);
   }
 
   @override
@@ -301,7 +318,7 @@ class _LoginPageState extends State<LoginPage>
                     0,
                     AmbientIconButton(
                       icon: Symbols.arrow_back_rounded,
-                      tooltip: '返回',
+                      tooltip: context.l10n.common_back,
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),
@@ -315,7 +332,7 @@ class _LoginPageState extends State<LoginPage>
                       0,
                       AmbientIconButton(
                         icon: Symbols.delete_rounded,
-                        tooltip: '清除保存的账号',
+                        tooltip: context.l10n.forum_clearSavedCredentials,
                         onPressed: _clearSavedCredentials,
                       ),
                     ),
@@ -343,7 +360,9 @@ class _LoginPageState extends State<LoginPage>
                           _entry(
                             1,
                             Text(
-                              'LINUX.DO',
+                              SiteContext.instance.current.displayName(
+                                context.l10n.forum_defaultName,
+                              ),
                               textAlign: TextAlign.center,
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
@@ -427,8 +446,8 @@ class _LoginPageState extends State<LoginPage>
                   )
                 : LoginForm(
                     onSubmit: _handleSubmit,
-                    onForgotPassword: () =>
-                        _loginWithWebView('https://linux.do/password-reset'),
+                    onForgotPassword: () => _loginWithWebView(
+                        '${AppConstants.baseUrl}/password-reset'),
                     savedUsername: _savedUsername,
                     savedPassword: _savedPassword,
                   ),
@@ -444,7 +463,7 @@ class _LoginPageState extends State<LoginPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _DividerWithLabel(label: '或'),
+        _DividerWithLabel(label: context.l10n.forum_or),
         const SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: _loginWithQrScan,
@@ -470,7 +489,7 @@ class _LoginPageState extends State<LoginPage>
                   child: LoadingSpinner(size: 20),
                 )
               : const Icon(Symbols.verified_user_rounded, size: 20),
-          label: const Text('浏览器授权登录'),
+          label: Text(context.l10n.forum_browserAuthLogin),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 52),
             shape: RoundedRectangleBorder(
@@ -485,7 +504,7 @@ class _LoginPageState extends State<LoginPage>
         OutlinedButton.icon(
           onPressed: () => _loginWithWebView(),
           icon: const Icon(Symbols.open_in_browser_rounded, size: 20),
-          label: const Text('其他方式登录 (OAuth / Passkey / 注册)'),
+          label: Text(context.l10n.forum_otherLoginMethods),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 52),
             shape: RoundedRectangleBorder(

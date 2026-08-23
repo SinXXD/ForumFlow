@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:fluxdo/services/data_management/data_backup_service.dart';
+import 'package:forumflow/services/data_management/data_backup_service.dart';
 
 void main() {
   group('DataBackupService v2 反白名单', () {
@@ -60,6 +60,9 @@ void main() {
         'linux_do_csrf_token',
         'linux_do_username',
         'auth_passive_logout_history_v1',
+        'bg_notification_user_id_linux.do',
+        'bg_notification_last_message_id_linux.do',
+        'bg_long_polling_base_url_linux.do',
         'bg_shared_session_key',
         'one_time_password',
         // 设备/运行态

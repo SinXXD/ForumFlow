@@ -1,15 +1,15 @@
 Windows Registry Editor Version 5.00
 
-; FluxDO URL Scheme Registration
-; 双击此文件或在安装程序中导入以注册 fluxdo:// URL scheme
+; ForumFlow URL Scheme Registration
+; 双击此文件或在安装程序中导入以注册 forumflow:// URL scheme
 
-[HKEY_CURRENT_USER\Software\Classes\fluxdo]
-@="URL:FluxDO Protocol"
+[HKEY_CURRENT_USER\Software\Classes\forumflow]
+@="URL:ForumFlow Protocol"
 "URL Protocol"=""
 
-[HKEY_CURRENT_USER\Software\Classes\fluxdo\shell]
+[HKEY_CURRENT_USER\Software\Classes\forumflow\shell]
 
-[HKEY_CURRENT_USER\Software\Classes\fluxdo\shell\open]
+[HKEY_CURRENT_USER\Software\Classes\forumflow\shell\open]
 
-[HKEY_CURRENT_USER\Software\Classes\fluxdo\shell\open\command]
-@="\"C:\\Program Files\\FluxDO\\fluxdo.exe\" \"%1\""
+[HKEY_CURRENT_USER\Software\Classes\forumflow\shell\open\command]
+@="\"C:\\Program Files\\ForumFlow\\fluxdo.exe\" \"%1\""

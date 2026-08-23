@@ -1650,10 +1650,11 @@ mixin _AuthMixin on _DiscourseServiceBase {
       // 换账号 = 新浏览器会话,这里复位让下一个会话重新跑一次。
       WebViewSessionCookieRefreshService.instance.resetSessionState();
 
-      // ===== 第五步：清除 Cookie（保留 cf_clearance）=====
+      // ===== 第五步：清除当前论坛 Cookie（保留 cf_clearance）=====
       await _cookieSync.reset();
       final cfClearanceCookie = await _cookieJar.getCfClearanceCookie();
-      await _cookieJar.clearAll();
+      // 多论坛共用一个 CookieJar，登出当前论坛不能清掉其它论坛的会话。
+      await _cookieJar.clearCurrentSite();
       if (cfClearanceCookie != null) {
         await _cookieJar.restoreCfClearance(cfClearanceCookie);
       }
