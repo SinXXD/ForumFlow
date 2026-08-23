@@ -22,8 +22,10 @@ class ForumSwitchButton extends ConsumerWidget {
       listenable: siteContext,
       builder: (context, _) {
         final current = siteContext.current;
+        final currentName =
+            current.displayName(context.l10n.forum_defaultName);
         return Tooltip(
-          message: context.l10n.forum_switchTooltip(current.name),
+          message: context.l10n.forum_switchTooltip(currentName),
           child: IconButton(
             onPressed: () => _showSwitcher(context, ref),
             icon: Row(
@@ -34,7 +36,7 @@ class ForumSwitchButton extends ConsumerWidget {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 96),
                   child: Text(
-                    current.host,
+                    currentName,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelLarge,
                   ),
@@ -71,7 +73,9 @@ class ForumSwitchButton extends ConsumerWidget {
                         ? Icons.public_rounded
                         : Icons.forum_rounded,
                   ),
-                  title: Text(site.name),
+                  title: Text(
+                    site.displayName(l10n.forum_defaultName),
+                  ),
                   subtitle: Text(site.baseUrl),
                   trailing: site.id == siteContext.current.id
                       ? const Icon(

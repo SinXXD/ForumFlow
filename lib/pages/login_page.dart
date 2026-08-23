@@ -360,7 +360,9 @@ class _LoginPageState extends State<LoginPage>
                           _entry(
                             1,
                             Text(
-                              SiteContext.instance.current.name,
+                              SiteContext.instance.current.displayName(
+                                context.l10n.forum_defaultName,
+                              ),
                               textAlign: TextAlign.center,
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.w700,

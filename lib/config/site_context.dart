@@ -30,26 +30,26 @@ class SiteContext extends ChangeNotifier {
   static const List<ForumSite> presetSites = [
     ForumSite(
       id: 'linux.do',
-      name: 'Linux.do',
+      name: 'Linux 技术社区',
       baseUrl: 'https://linux.do',
       isPreset: true,
       hcaptchaSiteKey: 'a776b4ac-8c4c-441e-986a-c6ee9ed8cf08',
     ),
     ForumSite(
       id: 'idcflare.com',
-      name: 'idcflare.com',
+      name: 'IDC Flare 社区',
       baseUrl: 'https://idcflare.com',
       isPreset: true,
     ),
     ForumSite(
       id: 'www.nodeloc.com',
-      name: 'www.nodeloc.com',
+      name: 'NodeLoc 社区',
       baseUrl: 'https://www.nodeloc.com',
       isPreset: true,
     ),
     ForumSite(
       id: 'meta.appinn.net',
-      name: 'meta.appinn.net',
+      name: '小众软件社区',
       baseUrl: 'https://meta.appinn.net',
       isPreset: true,
     ),

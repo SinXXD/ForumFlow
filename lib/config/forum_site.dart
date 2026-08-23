@@ -11,7 +11,10 @@ class ForumSite {
   /// 站点唯一 id = 规范化 host（如 `linux.do`）
   final String id;
 
-  /// 显示名称（如 `Linux.do`）
+  /// 面向用户的论坛显示名称。
+  ///
+  /// 这是论坛的品牌/社区名称，不是 host。host 只用于 [id]、请求地址
+  /// 和登录态命名空间；界面应将 host 作为辅助地址展示。
   final String name;
 
   /// 站点根 URL（如 `https://linux.do`）
@@ -37,7 +40,35 @@ class ForumSite {
   /// 规范化 host
   String get host => Uri.parse(baseUrl).host;
 
-  /// 从用户输入构造站点，id 自动取规范化 host
+  /// 返回适合界面展示的名称。
+  ///
+  /// 早期版本允许在未填写名称时把 host 写入 [name]。保留这些数据可以
+  /// 继续作为站点 id 使用，但不应再把域名当作论坛标题显示。
+  String displayName(String fallback) {
+    final value = name.trim();
+    if (value.isEmpty || _looksLikeHost(value)) return fallback;
+    return value;
+  }
+
+  bool _looksLikeHost(String value) {
+    final candidate = value.toLowerCase();
+    final currentHost = host.toLowerCase();
+    if (candidate == currentHost || candidate == 'www.$currentHost') {
+      return true;
+    }
+    final uri = Uri.tryParse(
+      candidate.contains('://') ? candidate : 'https://$candidate',
+    );
+    return uri != null &&
+        uri.host.isNotEmpty &&
+        uri.host.toLowerCase() == currentHost &&
+        uri.path.isEmpty;
+  }
+
+  /// 从用户输入构造站点，id 自动取规范化 host。
+  ///
+  /// [name] 应传入人类可读的论坛名称；没有名称时由上层使用本地化的
+  /// 通用名称，不将 host 伪装成论坛名称。
   factory ForumSite.fromBaseUrl({
     required String name,
     required String baseUrl,

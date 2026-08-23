@@ -57,12 +57,6 @@ class _ForumManagePageState extends ConsumerState<ForumManagePage> {
     }
   }
 
-  String _defaultSiteName(String rawUrl) {
-    var input = rawUrl.trim();
-    if (!input.contains('://')) input = 'https://$input';
-    return Uri.tryParse(input)?.host ?? rawUrl.trim();
-  }
-
   Future<void> _addForum() async {
     final nameController = TextEditingController();
     final urlController = TextEditingController();
@@ -125,7 +119,7 @@ class _ForumManagePageState extends ConsumerState<ForumManagePage> {
       site = ForumSite.fromBaseUrl(
         name: result.name.isNotEmpty
             ? result.name
-            : _defaultSiteName(result.baseUrl),
+            : context.l10n.forum_defaultName,
         baseUrl: result.baseUrl,
       );
     } on FormatException {
@@ -138,7 +132,13 @@ class _ForumManagePageState extends ConsumerState<ForumManagePage> {
     await SiteContext.instance.addSite(site);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.forum_addSuccess(site.name))),
+      SnackBar(
+        content: Text(
+          context.l10n.forum_addSuccess(
+            site.displayName(context.l10n.forum_defaultName),
+          ),
+        ),
+      ),
     );
     setState(() {});
   }
@@ -149,7 +149,11 @@ class _ForumManagePageState extends ConsumerState<ForumManagePage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.forum_deleteTitle),
-        content: Text(l10n.forum_deleteMessage(site.name)),
+        content: Text(
+          l10n.forum_deleteMessage(
+            site.displayName(l10n.forum_defaultName),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -189,7 +193,9 @@ class _ForumManagePageState extends ConsumerState<ForumManagePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
           Text(
-            l10n.forum_current(current.name),
+            l10n.forum_current(
+              current.displayName(l10n.forum_defaultName),
+            ),
             style: theme.textTheme.titleMedium,
           ),
           Text(current.baseUrl, style: theme.textTheme.bodySmall),
@@ -202,7 +208,9 @@ class _ForumManagePageState extends ConsumerState<ForumManagePage> {
                       ? Icons.public_rounded
                       : Icons.forum_rounded,
                 ),
-                title: Text(site.name),
+                title: Text(
+                  site.displayName(l10n.forum_defaultName),
+                ),
                 subtitle: Text(site.baseUrl),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

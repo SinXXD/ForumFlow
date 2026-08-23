@@ -101,7 +101,9 @@ class _WebViewLoginPageState extends ConsumerState<WebViewLoginPage> {
       appBar: AppBar(
         title: Text(
           context.l10n.forum_webviewLoginTitle(
-            SiteContext.instance.current.name,
+            SiteContext.instance.current.displayName(
+              context.l10n.forum_defaultName,
+            ),
           ),
         ),
         actions: [
